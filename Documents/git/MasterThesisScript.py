@@ -77,17 +77,21 @@ NONPNL       = np.log(NONPNL.values[1:]/NONPNL.values[:-1]) # Change in NCPNL
 OI           = np.log(oi.values[1:]/oi.values[:-1])
 
 ####    DataFraming COT measures 
-dfCOT           = pd.concat([pd.DataFrame(NONPNL),pd.DataFrame(CPNL),pd.DataFrame(NCPNL),pd.DataFrame(OI)],axis=1)
+dfCOT           = pd.concat([pd.DataFrame(NONPNL),
+                             pd.DataFrame(CPNL),
+                             pd.DataFrame(NCPNL),
+                             pd.DataFrame(OI)],axis=1)
 dfCOT.columns= range(4)
 
 
 ####    CEFD data
 cefd            = pd.DataFrame(data.dscnt.interpolate('linear').values[1:])
 
-####    Dickey Fuller test for unit root in variables ########################
+####  Augmented Dickey Fuller test for unit root in variables #################
 adfuller        = pd.DataFrame()
 dfall           = pd.concat([famafrench, cefd, dfCOT, vixret],axis=1)
 dfall.columns   = np.arange(9)
+ERCO            = pd.DataFrame()
 for i in dfall.columns:
     adfuller[i] = sm.tsa.stattools.adfuller(dfall[i], regression="c", autolag='AIC')
     dfall[i]    = np.where(abs(dfall[i])>=5*np.std(dfall[i]), np.nan, dfall[i])
@@ -100,7 +104,8 @@ dfall.columns   = adfuller.columns
 dfall.index     = Sdata.index[1:]
 # Stationarity assumption holds.
 
-sixcolors       = ['darkcyan', 'teal', 'seagreen' , 'mediumseagreen' , 'lightseagreen' , 'mediumaquamarine' ]
+sixcolors       = ['darkcyan', 'teal', 'seagreen' ,
+                   'mediumseagreen' , 'lightseagreen' , 'mediumaquamarine' ]
 
 dfall[notff3].corr()
 # There seems to be multicollinearity in the features. Let's extract the PCs
@@ -152,7 +157,7 @@ list_of_responses = ["SMALLLoBM", "ME1BM2", "SMALLHiBM", "BIGLoBM", "ME2BM2", "B
 Pdata2.columns    = list_of_responses
 regdata           = pd.concat([Pdata2,dfall],axis=1,ignore_index=False)
 regdata.columns   = np.append(list_of_responses,dfall.columns.values)
-#############################################################################
+##############################################################################
 
 #### Regression 1 
 # Univariate regression of each feature on each stock portfolio
@@ -166,14 +171,20 @@ nbyn   = np.arange(299,dtype=np.int32)
 order  = np.array(toeplitz(nbyn),dtype=np.int32) 
 for resp in list_of_responses:
     for exog in ['cefd','NONPNL', 'CPNL', 'NCPNL', 'OI', 'vixret']:
+        # Define regression
         formula     = resp + " ~ " + exog
+        # Regress exog on response
         reg1.append(sm.OLS.from_formula(formula, data=regdata).fit())
-        #print(reg1[len(reg1)-1].summary())
+        # Obtain residuals
         resid1.append(reg1[len(reg1)-1].resid)
+        # White's test for heterosced
         white1ols.append(sm.stats.diagnostic.het_white(resid1[len(reg1)-1],
                                                  sm.add_constant(regdata[[exog]])))
+        # Breusch Godfrey test for autocorr
         acorr1ols.append(sm.stats.diagnostic.acorr_breusch_godfrey(reg1[len(reg1)-1]))
+        # Regress residual time series on its lag
         res_fit     = sm.OLS(resid1[len(reg1)-1].values[1:], resid1[len(reg1)-1].values[:-1]).fit()
+        # Obtain parameter
         rho         = res_fit.params
         sigma       = np.array(rho**order,dtype=np.float32)
         reg1.pop()
