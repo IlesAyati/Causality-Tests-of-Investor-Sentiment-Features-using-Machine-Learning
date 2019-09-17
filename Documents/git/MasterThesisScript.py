@@ -91,24 +91,21 @@ cefd            = pd.DataFrame(data.dscnt.interpolate('linear').values[1:])
 adfuller        = pd.DataFrame()
 dfall           = pd.concat([famafrench, cefd, dfCOT, vixret],axis=1)
 dfall.columns   = np.arange(9)
-ERCO            = pd.DataFrame()
 for i in dfall.columns:
-    adfuller[i] = sm.tsa.stattools.adfuller(dfall[i], regression="c", autolag='AIC')
+    adfuller[i] = sm.tsa.stattools.adfuller(dfall[i], maxlag=None, regression="c", autolag='AIC')
     dfall[i]    = np.where(abs(dfall[i])>=5*np.std(dfall[i]), np.nan, dfall[i])
     dfall       = dfall.ffill()
-    
+
+# Defining Columns and indexes  
 ff3             = ['ret', 'smb', 'hml']
 notff3          = ['cefd', 'NONPNL', 'CPNL', 'NCPNL', 'OI', 'vixret']
 adfuller.columns= ff3 + notff3
 dfall.columns   = adfuller.columns
 dfall.index     = Sdata.index[1:]
-# Stationarity assumption holds.
 
-sixcolors       = ['darkcyan', 'teal', 'seagreen' ,
-                   'mediumseagreen' , 'lightseagreen' , 'mediumaquamarine' ]
-
+# Correlation matrix of features
 dfall[notff3].corr()
-# There seems to be multicollinearity in the features. Let's extract the PCs
+# There seems to be multicollinearity in the features. Extracting the PCs
 smPC            = sm.PCA(dfall, standardize=1, method='svd')
 smPCcorr        = smPC.scores.corr()
 dfallPC         = smPC.scores
@@ -116,6 +113,8 @@ dfallPC         = smPC.scores
 #!! MULTIVARIATE REGRESSIONS MUST USE PCS
 # %% ## Printing section of data
 """
+sixcolors       = ['darkcyan', 'teal', 'seagreen' ,
+                   'mediumseagreen' , 'lightseagreen' , 'mediumaquamarine' ]
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 fig, axs = plt.subplots(len(notff3),sharex=True)
@@ -331,6 +330,21 @@ plt.show()
 ##############################################################################
 
 # %% Vector Autoregression ###################################################
+
+###### Cointegration test ####################################################
+Pdata2Price        = pd.DataFrame(np.cumprod(np.exp(Pdata2.values),axis=0))
+FF3Price           = np.cumprod(np.exp(famafrench),axis=0)
+COT2Price          = np.cumprod(np.exp(dfCOT), axis=0)
+vix2Price          = np.cumprod(np.exp(vixret))
+data2Price         = pd.concat([cefd,FF3Price,COT2Price,vix2Price], 
+                               axis=1)
+data2Price.columns = dfall.columns
+ERCO               = []
+for i in range(len(Pdata2Price.columns)):
+    for j in range(len(data2Price.columns)):
+        ERCO.append(sm.tsa.stattools.coint(Pdata2Price.loc[:,Pdata2Price.columns[i]],
+                                           data2Price.loc[:,data2Price.columns[j]]))
+##############################################################################
 
 from statsmodels.tsa.vector_ar.var_model1 import VAR
 #### VAR 1
