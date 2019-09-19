@@ -343,7 +343,9 @@ ERCO               = []
 for i in range(len(Pdata2Price.columns)):
     for j in range(len(data2Price.columns)):
         ERCO.append(sm.tsa.stattools.coint(Pdata2Price.loc[:,Pdata2Price.columns[i]],
-                                           data2Price.loc[:,data2Price.columns[j]]))
+                                           data2Price.loc[:,data2Price.columns[j]],
+                                           maxlag=None))
+# The features are not cointegrated with the portfolios
 ##############################################################################
 
 from statsmodels.tsa.vector_ar.var_model1 import VAR
@@ -360,9 +362,9 @@ var1pvals   = []
 var11pvals  = []
 for resp in list_of_responses:
     for exog in notff3:
-        var1.append(VAR(regdata[[resp,exog]], dates=regdata.index).fit(maxlags=None, ic='aic', trend='c'))
-        varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=exog, kind='f', signif=0.1))
-        varesults11.append(var1[len(var1)-1].test_causality(caused=exog,causing=resp, kind='f', signif=0.1))
+        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(maxlags=None, ic='aic', trend='c'))
+        varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=['ret',resp, exog], kind='f', signif=0.05))
+        varesults11.append(var1[len(var1)-1].test_causality(caused=resp,causing=['ret',resp], kind='f', signif=0.05))
         var1aic.append(var1[len(var1)-1].aic)
         var1pvals.append(varesults1[len(var1)-1].pvalue)
         var11pvals.append(varesults11[len(var1)-1].pvalue)
