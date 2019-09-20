@@ -3,7 +3,7 @@ Preliminary thesis.
 
 # Instructions
 MasterThesisScript.py contains the entire script in one .py file.
-ExecutionFile.py allows for execution of the script by module. There are 8 modules in Total.
+ExecutionFile.py allows for execution of the script by module. There are 9 executable modules.
 Order is important: All modules must be executed in the preset order.
 All regressions depend on data preperation modules DataCollection.py,
 and all machine learning modules depend on LOGIT.py and MLPrep.py as well. 
@@ -17,3 +17,4 @@ and all machine learning modules depend on LOGIT.py and MLPrep.py as well.
 6. ML_OLS.py : SKlearn OLS regressions with and without principal components - One-way causality tests.
 7. ML_RIDGELASSO.py : SKlearn Ridge and Lasso regressions with and without principal components - One-way causality tests.
 8. ML_FOREST.py : SKlearn Random Forest Regressions with and without principal components - One-way causality tests.
+9. TablesFigures.py : Tables and figures ordered by executable module. 
