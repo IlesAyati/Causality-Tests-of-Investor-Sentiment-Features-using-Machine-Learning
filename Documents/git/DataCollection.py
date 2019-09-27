@@ -4,9 +4,9 @@ Created on Thu Sep 19 23:59:20 2019
 
 @author: yeeya
 """
-
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 # %% Loading data ############################################################
 data         = pd.read_csv('./Data/letsdodis3.csv')
 data.index   = pd.to_datetime(data.date)

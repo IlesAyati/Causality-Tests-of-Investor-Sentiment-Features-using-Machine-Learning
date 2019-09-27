@@ -6,14 +6,17 @@ Created on Fri Sep 20 00:32:38 2019
 """
 
 # %% MACHINE LEARNING  ######################################################
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 #from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.linear_model import Lasso, Ridge
 from sklearn.metrics import r2_score, mean_squared_error, accuracy_score, explained_variance_score
 from sklearn.model_selection import GridSearchCV
-from scipy.stats import ttest_ind, f_oneway                       
+from scipy.stats import ttest_ind, f_oneway 
+from skits.pipeline import ForecasterPipeline, FeatureUnion
+from skits.preprocessing import ReversibleImputer
+from skits.feature_extraction import AutoregressiveTransformer                     
 #from sklearn.feature_selection import f_regression
 from sklearn.tree.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor

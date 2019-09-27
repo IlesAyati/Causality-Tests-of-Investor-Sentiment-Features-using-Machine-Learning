@@ -354,6 +354,7 @@ from statsmodels.tsa.vector_ar.var_model1 import VAR
 var1        = []
 varesults1  = []
 varesults11 = []
+var1_resid  = []
 var1_acorr  = []
 var1aic     = []
 var1yesno   = []
@@ -362,7 +363,7 @@ var1pvals   = []
 var11pvals  = []
 for resp in list_of_responses:
     for exog in notff3:
-        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(maxlags=None, ic='aic', trend='c'))
+        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(method='mle', maxlags=None, ic='aic', trend='c'))
         varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=['ret',resp, exog], kind='f', signif=0.05))
         varesults11.append(var1[len(var1)-1].test_causality(caused=resp,causing=['ret',resp], kind='f', signif=0.05))
         var1aic.append(var1[len(var1)-1].aic)
@@ -370,8 +371,9 @@ for resp in list_of_responses:
         var11pvals.append(varesults11[len(var1)-1].pvalue)
         var1yesno.append(varesults1[len(var1)-1].conclusion)
         var11yesno.append(varesults11[len(var1)-1].conclusion)
-        var1_acorr.append(var1[len(var1)-1].acorr)
-        print(varesults1[len(var1)-1].summary())
+        var1_resid.append(var1[len(var1)-1].resid)
+        var1_acorr.append(var1[len(var1)-1].plot_acorr())
+        print(var1[len(var1)-1].summary())
 
 ### Plot results
 plt.figure()

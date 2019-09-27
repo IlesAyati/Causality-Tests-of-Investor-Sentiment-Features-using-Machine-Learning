@@ -4,10 +4,18 @@ Created on Fri Sep 20 00:38:40 2019
 
 @author: yeeya
 """
+pipeline = ForecasterPipeline([
+    ('features', FeatureUnion([
+        ('ar_features', AutoregressiveTransformer(num_lags=1)),
+    ])),
+    ('post_feature_imputer', ReversibleImputer()),
+    ('regressor', LinearRegression(fit_intercept=False))
+])
 
+pipeline = pipeline.fit(X, y)
 # %% OLS regressions    ######################################################
-scaler          = StandardScaler()
-scaler2         = StandardScaler()
+scaler          = StandardScaler(with_mean=0, with_std=1)
+scaler2         = StandardScaler(with_mean=0, with_std=1)
 lin_regWO       = []
 lin_regW        = []
 y_predLinWO     = []
@@ -23,9 +31,9 @@ for i in range(trainmin,trainmax):
     #print(range(i-trainmin,i))
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[responsesL + notff3].iloc[i-trainmin:i], regdata[responsesL + notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata[list_of_responses + notff3].iloc[i-trainmin:i], regdata[list_of_responses + notff3].iloc[i:i+1]
     #
     y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
     y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
@@ -43,11 +51,12 @@ for i in range(trainmin,trainmax):
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
 ##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
+    #for resp, respL in zip(list_of_responses, responsesL):
+    for resp in list_of_responses:
         for exog in notff3:
             ## Fit regressions
-            model      = {'OLSwof': LinearRegression(fit_intercept=False, normalize=False).fit(Xwof_train[respL],y_train2[resp]),
-                          'OLSwf': LinearRegression(fit_intercept=False, normalize=False).fit(Xwf_train[[respL] + [exog]],y_train2[resp]),}
+            model      = {'OLSwof': pipeline.fit(Xwof_train[resp].values,y_train2[resp].values),
+                          'OLSwf': pipeline.fit(Xwf_train[[resp] + [exog]].values,y_train2[resp].values),}
             ## Predictions
             lin_regWO.append(model['OLSwof'])
             lin_regW.append(model['OLSwf'])
@@ -69,17 +78,19 @@ y_predLinW0  = np.array(axLinWO).squeeze().reshape(trainmax-trainmin,cols)
 y_predLinW   = np.array(axLinW).squeeze().reshape(trainmax-trainmin,cols)
 linresultsWO = []
 axLinWO      = []
-linresid     = []
+linresidWO   = []
+linresidW    = []
 linresultsW  = []
 axLinW       = []
 # Get the results
 for i in range(0,y_predLinW0.shape[1]-1,2):
-    linresultsWO.append(r2_score(y_predLinW0[1:,i],y_predLinW0[:-1,i+1]))
+    linresultsWO.append(mean_squared_error(y_predLinW0[1:,i],y_predLinW0[:-1,i+1]))
     axLinWO.append(np.array([y_predLinW0[:,i],y_predLinW0[:,i+1]]).T)
-    #linresid.append(axLin[len(axLin)-1].T[0]-axLin[len(axLin)-1].T[1]) # Heteroscedasticity? 
-    linresultsW.append(r2_score(y_predLinW[1:,i],y_predLinW[:-1,i+1]))
+    linresidWO.append(axLinWO[len(axLinWO)-1][:,0]-axLinWO[len(axLinWO)-1][:,1]) # Heteroscedasticity? 
+    linresultsW.append(mean_squared_error(y_predLinW[1:,i],y_predLinW[:-1,i+1]))
     axLinW.append(np.array([y_predLinW[:,i],y_predLinW[:,i+1]]).T)
-
+    linresidW.append(axLinW[len(axLinW)-1][:,0]-axLinW[len(axLinW)-1][:,1]) # Heteroscedasticity? 
+    
 ### Mean performance of each feature
 linresultsWO = pd.DataFrame(np.split(np.array(linresultsWO), 6), columns=list_of_responses, index=responsesL)
 print('Mean R2 score without feature = ', linresultsWO.mean(axis=1))
