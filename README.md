@@ -1,6 +1,6 @@
 # MasterThesis
 Preliminary thesis. 
-To João : I need to finish the methodology and then put in the results and provide the interpretation. Then I only need the introduction. I believe this can be done by next friday (4th of October).  
+To João : I need to finish the methodology and then put in the results and provide the interpretation. Then I only need the introduction. I believe this can be done by next wednesday (9th of October).  
 
 # Instructions
 MasterThesisScript.py contains the entire script in one .py file.
