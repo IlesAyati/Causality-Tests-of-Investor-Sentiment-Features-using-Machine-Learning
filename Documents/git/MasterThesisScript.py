@@ -106,11 +106,10 @@ dfall.index     = Sdata.index[1:]
 # Correlation matrix of features
 dfall[notff3].corr()
 # There seems to be multicollinearity in the features. Extracting the PCs
-smPC            = sm.PCA(dfall, standardize=1, method='svd')
+smPC            = sm.PCA(dfall, standardize=1, ncomp=3, method='svd')
 smPCcorr        = smPC.scores.corr()
 dfallPC         = smPC.scores
 
-#!! MULTIVARIATE REGRESSIONS MUST USE PCS
 # %% ## Printing section of data
 """
 sixcolors       = ['darkcyan', 'teal', 'seagreen' ,
@@ -229,7 +228,7 @@ regdataPC           = pd.concat([Pdata2,dfallPC],axis=1,ignore_index=False)
 regdataPC.columns   = np.append(list_of_responses,dfall.columns.values)
 #############################################################################
 
-#### Regression 2
+#### Regression 2 - COT bundle
 # One regression per stock portfolio
 reg2         = []
 tvals2       = []
@@ -276,7 +275,7 @@ reg2plot.savefig('./Figures/reg2plot.pdf')
 plt.show()
 """
 
-#### Regression 3
+#### Regression 3 - All features
 # One regression per stock portfolio
 reg3      = []
 tvals3    = []
@@ -331,26 +330,46 @@ plt.show()
 
 # %% Vector Autoregression ###################################################
 
-###### Cointegration test ####################################################
+###### Cointegration and stationarity test ###################################
 Pdata2Price        = pd.DataFrame(np.cumprod(np.exp(Pdata2.values),axis=0))
 FF3Price           = np.cumprod(np.exp(famafrench),axis=0)
-COT2Price          = np.cumprod(np.exp(dfCOT), axis=0)
-vix2Price          = np.cumprod(np.exp(vixret))
-data2Price         = pd.concat([cefd,FF3Price,COT2Price,vix2Price], 
+####    COT levels
+COT2Price          = pd.concat([pd.DataFrame(nclong/ncshort),
+                                pd.DataFrame(clong/cshort),
+                                pd.DataFrame(nonreplong/nonrepshort),
+                                pd.DataFrame(oi)],axis=1).drop(index=nclong.index[0])
+COT2Price.columns     = range(4)
+COT2Price.index       = FF3Price.index
+vix2Price             = np.cumprod(np.exp(vixret))
+data2Price            = pd.concat([cefd,FF3Price,COT2Price,vix2Price], 
+                                  axis=1, ignore_index=True)
+data2Price.columns    = dfall.columns
+regdata2Price         = pd.concat([Pdata2Price,data2Price], 
                                axis=1)
-data2Price.columns = dfall.columns
-ERCO               = []
+regdata2Price.columns = regdata.columns
+regdata2Price.index   = regdata.index
+#
+# Cointegration test
+ERCO                  = []
 for i in range(len(Pdata2Price.columns)):
     for j in range(len(data2Price.columns)):
         ERCO.append(sm.tsa.stattools.coint(Pdata2Price.loc[:,Pdata2Price.columns[i]],
                                            data2Price.loc[:,data2Price.columns[j]],
-                                           maxlag=None))
-# The features are not cointegrated with the portfolios
+                                           maxlag=12))
+# Unit root test on levels
+ADF2                  = pd.DataFrame()
+for i in regdata2Price.columns:
+    ADF2[i] = sm.tsa.stattools.adfuller(regdata2Price[i].diff().bfill(), maxlag=12, regression="c", autolag='AIC')
+
+# =============================================================================
+# Even though the data seems to be stationary, the absence of cointegration means
+# VAR inputs should be on differenced data. Thus, we use the same data set as in the GLS regressions.
+# =============================================================================
 ##############################################################################
 
 from statsmodels.tsa.vector_ar.var_model1 import VAR
 #### VAR 1
-# Using lagged values of responses and features to test for causality (individual)
+# Using lagged values of responses and features to test for causality (per feature)
 var1        = []
 varesults1  = []
 varesults11 = []
@@ -363,18 +382,18 @@ var1pvals   = []
 var11pvals  = []
 for resp in list_of_responses:
     for exog in notff3:
-        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(method='mle', maxlags=None, ic='aic', trend='c'))
-        varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=['ret',resp, exog], kind='f', signif=0.05))
-        varesults11.append(var1[len(var1)-1].test_causality(caused=resp,causing=['ret',resp], kind='f', signif=0.05))
+        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(method='ols', maxlags=None, ic='aic', trend='c'))
+        varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=exog, kind='wald', signif=0.05))
+        varesults11.append(var1[len(var1)-1].test_causality(caused=exog,causing=resp, kind='wald', signif=0.05))
         var1aic.append(var1[len(var1)-1].aic)
         var1pvals.append(varesults1[len(var1)-1].pvalue)
         var11pvals.append(varesults11[len(var1)-1].pvalue)
         var1yesno.append(varesults1[len(var1)-1].conclusion)
         var11yesno.append(varesults11[len(var1)-1].conclusion)
         var1_resid.append(var1[len(var1)-1].resid)
-        var1_acorr.append(var1[len(var1)-1].plot_acorr())
+        #var1_acorr.append(var1[len(var1)-1].plot_acorr()) # Takes some computer power to run
         print(var1[len(var1)-1].summary())
-
+#
 ### Plot results
 plt.figure()
 plt.bar(range(0,len(var1pvals)),np.array(var1yesno), alpha=.5, label='Feat -> Resp', color='r', align='edge')
@@ -383,7 +402,7 @@ plt.xticks(ticks=np.arange(0,len(var1pvals),step=6), labels=list_of_responses, f
 plt.xlim(0,len(var1pvals))
 plt.legend()
 plt.grid(b=None,axis='x')
-
+#
 ### Mean performance of each feature
 var1pvals   = pd.DataFrame(np.split(np.array(var1pvals), 6), columns=list_of_responses, index=notff3) 
 print('Mean of p-values per feature = ', var1pvals.mean(axis=0))
@@ -464,86 +483,71 @@ plt.savefig('logit2mfx.png')
 ##############################################################################
 ##############################################################################
 
-# %% MACHINE LEARNING  ######################################################
+# %% MACHINE LEARNING  #######################################################
 from sklearn.preprocessing import StandardScaler
-#from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.linear_model import Lasso, Ridge
-from sklearn.metrics import r2_score, mean_squared_error, accuracy_score, explained_variance_score
+from sklearn.linear_model import LinearRegression, LassoLarsIC, Lasso, Ridge
+from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.model_selection import GridSearchCV
-from scipy.stats import ttest_ind, f_oneway                       
 #from sklearn.feature_selection import f_regression
 from sklearn.tree.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
 #from sklearn.tree.export import export_graphviz
-#from statsmodels.tsa.stattools import grangercausalitytests
 from sklearn.model_selection import TimeSeriesSplit
 #import mglearn
 #import graphviz
 from timeit import default_timer as timer
-
-######  Regdata with lagged values #########################################
-dflag             = pd.concat([
-                               pd.DataFrame(np.roll(dfall,1,axis=0),  # First lag
-                                            index=dfall.index, 
-                                            columns=dfall.columns),
-                               pd.DataFrame(np.roll(dfall,2,axis=0),  # Second lag
-                                            index=dfall.index, 
-                                            columns=dfall.columns)], axis=1).drop(index=dfall.index[:2])
-#
-responsesL        = [list_of_responses[i] + str('_L') for i in range(len(list_of_responses))]
-#
-dada              = pd.concat([Pdata2, 
-                               pd.DataFrame(np.roll(Pdata2,1,axis=0), # First lag 
-                                            index=dfall.index, 
-                                            columns=responsesL), 
-                               pd.DataFrame(np.roll(Pdata2,2,axis=0), # Second lag
-                                            index=dfall.index, 
-                                            columns=responsesL)], axis=1).drop(index=dfall.index[:2])
-regdata           = pd.concat([dada,dflag],axis=1,ignore_index=False)
-#
-######             ######################################################## 
-retpos            = Pdata3.abs() > pd.core.window.Expanding(Pdata3,axis=0).std().bfill()
-retpos            = pd.DataFrame(retpos.astype(int))
-retpos            = pd.concat([retpos, 
-                               pd.DataFrame(np.roll(retpos,1,axis=0),
-                                                    index=dfall.index,
-                                                    columns=notff3),
-                               pd.DataFrame(np.roll(retpos,2,axis=0),
-                                                    index=dfall.index,
-                                                    columns=notff3)], axis=1).drop(index=dfall.index[:2])
-regdata2          = pd.concat([retpos,dflag],axis=1,ignore_index=False)
-###########################################################################
-
-# Define splits. The first 250 observations are used, expanded by one for each iteration
-trainmin   = 270
-trainmax   = len(regdata.values)
-
+# =============================================================================
+def aic(y, y_pred, k):
+   resid = np.array([y - y_pred]).T
+   rss   = np.sum(resid**2)
+   AIC   = 2*k - 2*len(y)*np.log(rss/len(y))
+   return AIC
+# =============================================================================
 tsplit          = TimeSeriesSplit(n_splits=5, max_train_size=270)
+pca             = PCA(n_components='mle', whiten=1, random_state=42)
+pca2            = PCA(n_components='mle', whiten=1, random_state=42)
 scaler          = StandardScaler()
 scaler2         = StandardScaler()
+# =============================================================================
 lin_regWO       = []
 lin_regW        = []
+lin_regcoefWO   = []
+lin_regcoefW    = []
+#
 y_predLinWO     = []
 y_predLinW      = []
 axLinWO         = []
 axLinW          = []
+#
 trainscoreWO    = []
 trainscoreW     = []
 testscoreWO     = []
 testscoreW      = []
+#
+modelselectWO   = []
+modelselectW    = []
+#
+CorrXwof_train_L= []
+CorrXwf_train_L = []
+CorrXwof_test_L = []
+CorrXwf_test_L  = []
+#
+Hetlin_regWO    = []
+Hetlin_regW     = []
+acorrlin_regWO  = []
+acorrlin_regW   = []
+#
 t0 = timer()
-for i in range(trainmin,trainmax):
-    #print(range(i-trainmin,i))
+for train_index,test_index in tsplit.split(regdata.index):
+    #print(train_index,test_index)
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses + ['ret']].iloc[train_index], regdata[list_of_responses + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[responsesL + notff3].iloc[i-trainmin:i], regdata[responsesL + notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata.iloc[train_index], regdata.iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
     # Step2: Fit standardizer to train sets
     scalefitwof    = scaler.fit(Xwof_train) # Standardize to fit train set WITHOUT FEATURE LAGS
     scalefitwf     = scaler2.fit(Xwf_train)  # Standardize to fit train set WITH FEATURE LAGS
@@ -557,50 +561,89 @@ for i in range(trainmin,trainmax):
     scalefity   = scaler.fit(y_train2) 
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
-##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
+###### Model training and testing ############################################
+    for resp in list_of_responses:
         for exog in notff3:
-            ## Fit regressions
-            model      = {'OLSwof': LinearRegression(fit_intercept=False, normalize=False).fit(Xwof_train[respL],y_train2[resp]),
-                          'OLSwf': LinearRegression(fit_intercept=False, normalize=False).fit(Xwf_train[[respL] + [exog]],y_train2[resp]),}
+            ## Model Selection
+            modelselectWO.append(np.max([1,VAR(Xwof_train[[resp] + ['ret']],
+                                   dates=y_train2.index).select_order(maxlags=12).aic]))
+            modelselectW.append(np.max([1,VAR(Xwf_train[[resp] + ['ret'] + [exog]],
+                                   dates=y_train2.index).select_order(maxlags=12).aic]))
+            # Define lagged X w.r.t AIC
+            Xwof_train_L   = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
+                                                        maxlag0=modelselectWO[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwof_train[[resp] + ['ret']].index[:modelselectWO[-1]],
+                                                                                        columns=Xwof_train[[resp] + ['ret']].columns[0])
+            Xwf_train_L    = sm.tsa.tsatools.lagmat2ds(Xwf_train[[resp] + ['ret'] + [exog]],
+                                                        maxlag0=np.max([1,modelselectW[-1]]),trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_train[[resp] + ['ret'] + [exog]].index[:modelselectW[-1]],
+                                                                                        columns=Xwf_train[[resp] + ['ret'] + [exog]].columns[0])
+            Xwof_test_L    = sm.tsa.tsatools.lagmat2ds(Xwof_test[[resp] + ['ret']],
+                                                        maxlag0=np.max([1,modelselectWO[-1]]),trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret']].index[:modelselectWO[-1]],
+                                                                                        columns=Xwf_test[[resp] + ['ret']].columns[0])
+            Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_test[[resp] + ['ret'] + [exog]],
+                                                        maxlag0=np.max([1,modelselectW[-1]]),trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret'] + [exog]].index[:modelselectW[-1]],
+                                                                                        columns=Xwf_test[[resp] + ['ret'] + [exog]].columns[0])
+            # Correlation matrices of lagged X
+            CorrXwof_train_L.append(Xwof_train_L.corr())
+            CorrXwf_train_L.append(Xwf_train_L.corr())
+            CorrXwof_test_L.append(Xwof_test_L.corr())
+            CorrXwf_test_L.append(Xwf_test_L.corr())
+            ## Train models
+            model      = {'OLSwof': LinearRegression(fit_intercept=False, normalize=False).fit(Xwof_train_L,y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]),
+                          'OLSwf': LinearRegression(fit_intercept=False, normalize=False).fit(Xwf_train_L,y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)])}
             ## Predictions
             lin_regWO.append(model['OLSwof'])
             lin_regW.append(model['OLSwf'])
-            y_predLinWO.append(lin_regWO[len(lin_regWO)-1].predict(Xwof_test[respL]))
-            y_predLinW.append(lin_regW[len(lin_regW)-1].predict(Xwf_test[[respL] + [exog]]))
-            axLinWO.append(np.array([y_test2[resp], y_predLinWO[len(lin_regWO)-1]]).T)
-            axLinW.append(np.array([y_test2[resp], y_predLinW[len(lin_regW)-1]]).T)    ## Performances
-            ## Compare train set performance
-            trainscoreWO.append(model['OLSwof'].score(Xwof_train[respL], y_train2[resp]))
-            trainscoreW.append(model['OLSwf'].score(Xwf_train[[respL] + [exog]], y_train2[resp]))
+            lin_regcoefWO.append(lin_regWO[len(lin_regWO)-1].coef_)
+            lin_regcoefW.append(lin_regW[len(lin_regW)-1].coef_)
+            y_predLinWO.append(lin_regWO[len(lin_regWO)-1].predict(Xwof_test_L))
+            y_predLinW.append(lin_regW[len(lin_regW)-1].predict(Xwf_test_L))
+            axLinWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)], y_predLinWO[len(lin_regWO)-1]]).T)
+            axLinW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], y_predLinW[len(lin_regW)-1]]).T)
+            ## Heteroscedasticity and autocorrelation tests
+            Hetlin_regWO.append(sm.stats.diagnostic.het_white(np.array([axLinWO[-1][:,0] - axLinWO[-1][:,1]]).T, 
+                                                              sm.add_constant(Xwof_test_L)))
+            Hetlin_regW.append(sm.stats.diagnostic.het_white(np.array([axLinW[-1][:,0] - axLinW[-1][:,1]]).T, 
+                                                             sm.add_constant(Xwf_test_L)))
+            acorrlin_regWO.append(sm.stats.diagnostic.acorr_ljungbox(axLinWO[-1][:,0] - axLinWO[-1][:,1]))
+            acorrlin_regW.append(sm.stats.diagnostic.acorr_ljungbox(axLinW[-1][:,0] - axLinW[-1][:,1]))
+# =============================================================================
+#             ## Performances
+#             ## Compare train set performance
+#             trainscoreWO.append(model['OLSwof'].score(Xwof_train_L,y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]))
+#             trainscoreW.append(model['OLSwf'].score(Xwf_train_L,y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+#             ## Compare test set performance
+#             testscoreWO.append(model['OLSwof'].score(Xwof_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)]))
+#             testscoreW.append(model['OLSwf'].score(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
+# =============================================================================
 t1 = timer()
 print(t1-t0)
-
-# Compare test set performance
-cols = int(len(axLinW)*2/(trainmax-trainmin)) # Twice the number of predictions made
-# We want to restructure (y, y_prediction) pairs so that all of them are in one matrix. 
+# =============================================================================
+## Alternative scoring on test set: AIC
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-y_predLinW0  = np.array(axLinWO).squeeze().reshape(trainmax-trainmin,cols)
-y_predLinW   = np.array(axLinW).squeeze().reshape(trainmax-trainmin,cols)
+lin_regcoefWO= np.array(lin_regcoefWO)
+lin_regcoefW = np.array(lin_regcoefW)
 linresultsWO = []
-axLinWO      = []
-linresid     = []
+linresidWO   = []
 linresultsW  = []
-axLinW       = []
+linresidW    = []
 # Get the results
-for i in range(0,y_predLinW0.shape[1]-1,2):
-    linresultsWO.append(r2_score(y_predLinW0[1:,i],y_predLinW0[:-1,i+1]))
-    axLinWO.append(np.array([y_predLinW0[:,i],y_predLinW0[:,i+1]]).T)
-    #linresid.append(axLin[len(axLin)-1].T[0]-axLin[len(axLin)-1].T[1]) # Heteroscedasticity? 
-    linresultsW.append(r2_score(y_predLinW[1:,i],y_predLinW[:-1,i+1]))
-    axLinW.append(np.array([y_predLinW[:,i],y_predLinW[:,i+1]]).T)
-
+for i in range(0,len(axLinWO)):
+    linresultsWO.append(aic(axLinWO[i][:,0],axLinWO[i][:,1],lin_regcoefWO[i].shape[0]))
+    linresidWO.append(axLinWO[i][:,0] - axLinWO[i][:,1])  
+    linresultsW.append(aic(axLinW[i][:,0],axLinW[i][:,1],lin_regcoefW[i].shape[0]))
+    linresidW.append(axLinW[i][:,0] - axLinW[i][:,1]) 
+# =============================================================================
 ### Mean performance of each feature
-linresultsWO = pd.DataFrame(np.split(np.array(linresultsWO), 6), columns=list_of_responses, index=responsesL)
-print('Mean R2 score without feature = ', linresultsWO.mean(axis=1))
-linresultsW  = pd.DataFrame(np.split(np.array(linresultsW), 6), columns=notff3, index=list_of_responses).T
-print('Mean of R2 score with feature = ', linresultsW.mean(axis=1))
-
+linresultsWO = pd.DataFrame(np.split(np.array(linresultsWO), 6), columns=list_of_responses*5, index=[list_of_responses[i] + str('_L') for i in range(len(list_of_responses))])
+print('Mean AIC without feature = ', linresultsWO.mean(axis=1))
+linresultsW  = pd.DataFrame(np.split(np.array(linresultsW), 6), columns=list_of_responses*5, index=[notff3[i] + str('_L') for i in range(len(notff3))])
+print('Mean AIC with feature = ', linresultsW.mean(axis=1))
+# =============================================================================
 """
 ## Plot train results, LinearRegression
 plt.bar(np.arange(0,len(trainscoreWO),step=1), height=trainscoreWO, 
@@ -610,36 +653,45 @@ plt.bar(np.arange(0,len(trainscoreW),step=1), height=trainscoreW,
 plt.xticks(ticks=np.arange(0,len(trainscoreWO),step=6))
 plt.legend()
 plt.grid(b=None,axis='x')
-
-
 """
-
 ##############################################################################
 ##############################################################################
-
 # %% PRINCIPAL COMPONENTS ANALYSIS ###########################################
-
-# First, split the data, then scale, then apply SVD.
-# Second, test significance of extracted pcs (LinearRegression)
 #
-pca                 = PCA(n_components='mle', whiten=1, random_state=42)
-lin_regWPCA         = []
-y_predLinWPCA       = []
-axLinWPCA           = []
-trainscoreWPCA      = []
-testscoreWPCA       = []
+lin_regWPCA       = []
+lin_regcoefWPCA   = []
+lin_regWPCA2      = []
+lin_regcoefWPCA2  = []
+#
+y_predLinWPCA     = []
+axLinWPCA         = []
+y_predLinWPCA2    = []
+axLinWPCA2        = []
+#
+trainscoreWPCA    = []
+trainscoreWPCA2   = []
+testscoreWPCA     = []
+testscoreWPCA2    = []
+#
+countiter         = []
+modelselectWPCA   = []
+modelselectWPCA2  = []
+#
+Hetlin_regWPCA    = []
+Hetlin_regWPCA2   = []
+acorrlin_regWPCA  = []
+acorrlin_regWPCA2 = []
 #
 t0 = timer()
-for i in range(trainmin,trainmax):
+for train_index,test_index in tsplit.split(regdata.index):
     #print(train_index,test_index)
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses + ['ret']].iloc[train_index], regdata[list_of_responses + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[notff3].iloc[i-trainmin:i], regdata[notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata.iloc[train_index], regdata.iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
     # Step2: Fit standardizer to train sets
     scalefitwof    = scaler.fit(Xwof_train)
     scalefitwf     = scaler2.fit(Xwf_train)
@@ -653,53 +705,108 @@ for i in range(trainmin,trainmax):
     scalefity   = scaler.fit(y_train2) 
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
-######## Apply PCA transformation ############################################
-    # Fit PCA to train set (with features)
-    pca.fit(Xwf_train) 
-    # Transform train and test sets 
-    Xwf_trainPCA    = pca.transform(Xwf_train)
-    Xwf_testPCA     = pca.transform(Xwf_test)  # Transformed test sets
-    pclist          = ['PC'+ str(i+1) for i in range(Xwf_trainPCA.shape[1])]
-    # Dataframe train set and enumerate PCs
-    Xwf_trainPCA    = pd.DataFrame(Xwf_trainPCA, index=Xwf_train.index, columns=pclist)
-    # Dataframe test set and enumerate PCs
-    Xwf_testPCA     = pd.DataFrame(Xwf_testPCA, index=Xwf_test.index, columns=Xwf_trainPCA.columns)
-    ####regdataPC.append(X_pca2.values) Ignore
-    # Concatenate the response lags with all PCs
-    Xwf_trainPCA = pd.concat([Xwof_train,Xwf_trainPCA], axis=1)
-    Xwf_testPCA  = pd.concat([Xwof_test,Xwf_testPCA], axis=1)
-##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
-        for pc in pclist:
-            #print(resp, respL, pc)
-            ## Fit regression
-            model      = {'OLSwf': LinearRegression(fit_intercept=False, normalize=False).fit(Xwf_trainPCA[[respL] + [pc]], y_train2[resp]),}
+###### Model training and testing ############################################
+    for resp in list_of_responses:
+        for exog in notff3:
+            ## Model Selection
+            countiter.append(y_test2.columns) # Just to count the iterations
+            modelselectWPCA  = [np.max([1,modelselectWO[i]]) for i in range(len(countiter))]
+            modelselectWPCA2 = [np.max([1,modelselectW[i]]) for i in range(len(countiter))]
+            # Define lagged X w.r.t AIC from model selection, then trim the initial observations (with no input)
+            Xwof_train_L   = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
+                                                        maxlag0=modelselectWPCA[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwof_train[[resp] + ['ret']].index[:modelselectWPCA[-1]],
+                                                                                        columns=Xwof_train[[resp] + ['ret']].columns[0])
+            Xwf_train_L    = sm.tsa.tsatools.lagmat2ds(Xwf_train[[resp] + ['ret'] + [exog]],
+                                                        maxlag0=modelselectWPCA2[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_train[[resp] + ['ret'] + [exog]].index[:modelselectWPCA2[-1]],
+                                                                                        columns=Xwf_train[[resp] + ['ret'] + [exog]].columns[0])
+            Xwof_test_L    = sm.tsa.tsatools.lagmat2ds(Xwof_test[[resp] + ['ret']],
+                                                        maxlag0=np.max([1,modelselectWPCA[-1]]),trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret']].index[:modelselectWPCA[-1]],
+                                                                                        columns=Xwf_test[[resp] + ['ret']].columns[0])
+            Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_test[[resp] + ['ret'] + [exog]],
+                                                        maxlag0=np.max([1,modelselectWPCA2[-1]]),trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret'] + [exog]].index[:modelselectWPCA2[-1]],
+                                                                                        columns=Xwf_test[[resp] + ['ret'] + [exog]].columns[0])
+            ######## Apply PCA transformation ############################################
+            # Fit PCA to train sets
+            pca.fit(Xwof_train_L) 
+            pca2.fit(Xwf_train_L) 
+            # Transform train and test sets
+            Xwof_trainPCA   = pca.transform(Xwof_train_L)
+            Xwof_testPCA    = pca.transform(Xwof_test_L)
+            Xwf_trainPCA    = pca2.transform(Xwf_train_L)
+            Xwf_testPCA     = pca2.transform(Xwf_test_L)
+            pclist          = ['PC'+ str(i+1) for i in range(Xwof_trainPCA.shape[1])]
+            pclist2         = ['PC'+ str(i+1) for i in range(Xwf_trainPCA.shape[1])]
+            # Dataframe train set and enumerate PCs
+            Xwof_trainPCA   = pd.DataFrame(Xwof_trainPCA, index=Xwof_train_L.index, columns=pclist)
+            Xwf_trainPCA    = pd.DataFrame(Xwf_trainPCA, index=Xwf_train_L.index, columns=pclist2)
+            # Dataframe test set and enumerate PCs
+            Xwof_testPCA    = pd.DataFrame(Xwof_testPCA, index=Xwof_test_L.index, columns=Xwof_trainPCA.columns)
+            Xwf_testPCA     = pd.DataFrame(Xwf_testPCA, index=Xwf_test_L.index, columns=Xwf_trainPCA.columns)
+            ## Train models
+            model      = {'OLSwof': LinearRegression(fit_intercept=False, normalize=False).fit(Xwof_trainPCA,y_train2[resp].iloc[y_train2.index.isin(Xwof_trainPCA.index)]),
+                          'OLSwf': LinearRegression(fit_intercept=False, normalize=False).fit(Xwf_trainPCA,y_train2[resp].iloc[y_train2.index.isin(Xwf_trainPCA.index)])}
             ## Predictions
-            lin_regWPCA.append(model['OLSwf'])
-            y_predLinWPCA.append(lin_regWPCA[len(lin_regWPCA)-1].predict(Xwf_testPCA[[respL] + [pc]]))
-            axLinWPCA.append(np.array([y_test2[resp], y_predLinWPCA[len(lin_regWPCA)-1]]).T)
-            ## Performance
-            ## Compare train set performance
-            trainscoreWPCA.append(model['OLSwf'].score(Xwf_trainPCA[[respL] + [pc]], y_train2[resp]))
+            lin_regWPCA.append(model['OLSwof'].fit(Xwof_trainPCA,
+                                                   y_train2[resp].iloc[y_train2.index.isin(Xwof_trainPCA.index)]))
+            lin_regcoefWPCA.append(lin_regWPCA[-1].coef_)
+            y_predLinWPCA.append(lin_regWPCA[-1].predict(Xwof_testPCA))
+            axLinWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_testPCA.index)], 
+                                       y_predLinWPCA[-1]]).T)
+            lin_regWPCA2.append(model['OLSwf'].fit(Xwof_trainPCA,
+                                                   y_train2[resp].iloc[y_train2.index.isin(Xwof_trainPCA.index)]))
+            lin_regcoefWPCA2.append(lin_regWPCA2[-1].coef_)
+            y_predLinWPCA2.append(lin_regWPCA2[-1].predict(Xwf_testPCA))
+            axLinWPCA2.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_testPCA.index)], 
+                                       y_predLinWPCA2[-1]]).T)
+            ## Heteroscedasticity and autocorrelation tests
+            Hetlin_regWPCA.append(sm.stats.diagnostic.het_white(np.array([axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]]).T, 
+                                                              sm.add_constant(Xwof_testPCA)))
+            Hetlin_regWPCA2.append(sm.stats.diagnostic.het_white(np.array([axLinWPCA2[-1][:,0] - axLinWPCA2[-1][:,1]]).T, 
+                                                             sm.add_constant(Xwf_testPCA)))
+            acorrlin_regWPCA.append(sm.stats.diagnostic.acorr_ljungbox(axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]))
+            acorrlin_regWPCA2.append(sm.stats.diagnostic.acorr_ljungbox(axLinWPCA2[-1][:,0] - axLinWPCA2[-1][:,1]))
+# =============================================================================
+#             ## Performances
+#             ## Compare train set performance
+#             trainscoreWPCA.append(model['OLSwof'].score(Xwof_trainPCA,y_train2[resp].iloc[y_train2.index.isin(Xwof_trainPCA.index)]))
+#             trainscoreWPCA2.append(model['OLSwf'].score(Xwf_trainPCA,y_train2[resp].iloc[y_train2.index.isin(Xwf_trainPCA.index)]))
+#             ## Compare test set performance
+#             testscoreWPCA.append(model['OLSwof'].score(Xwof_testPCA,y_test2[resp].iloc[y_test2.index.isin(Xwof_testPCA.index)]))
+#             testscoreWPCA2.append(model['OLSwf'].score(Xwf_testPCA,y_test2[resp].iloc[y_test2.index.isin(Xwf_testPCA.index)]))
+# =============================================================================
 t1 = timer()
 print(t1-t0)
-#
-cols = int(len(axLinWPCA)*2/(trainmax+1-trainmin))
-# Restructure predictions so that all of them are in one matrix. 
-# Each columns alternates between true y_test and predited y_test
-y_predLinWPCA   = np.array(axLinWPCA).squeeze().reshape(trainmax+1-trainmin,cols)
+# =============================================================================
+## Alternative scoring on test set: AIC
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
+# Each columns alternates between true y_test and predicted y_test
+lin_regcoefWPCA = np.array(lin_regcoefWPCA)
+lin_regcoefWPCA2= np.array(lin_regcoefWPCA2)
 linresultsWPCA  = []
-axLinWPCA       = []
+linresidWPCA    = []
+linresultsWPCA2 = []
+linresidWPCA2   = []
 # Get the results
-for i in range(0,y_predLinWPCA.shape[1]-1,2):
-    linresultsWPCA.append(r2_score(y_predLinWPCA[1:,i],y_predLinWPCA[:-1,i+1]))
-    axLinWPCA.append(np.array([y_predLinWPCA[:,i],y_predLinWPCA[:,i+1]]).T)
-#
-### Mean performance of each feature
-linresultsWPCA  = pd.DataFrame(np.split(np.array(linresultsWPCA), 6), columns=pclist, index=list_of_responses).T
-print('Mean of R2 score with feature = ', linresultsWPCA.mean(axis=1))
-#
-sns.regplot(Xwf_trainPCA['PC6'], y_train2[list_of_responses[-1]])
+for i in range(0,len(axLinWO)):
+    linresultsWPCA.append(aic(axLinWPCA[i][:,0],axLinWPCA[i][:,1],lin_regcoefWPCA[i].shape[0]))
+    linresidWPCA.append(axLinWPCA[i][:,0] - axLinWPCA[i][:,1])  
+    linresultsWPCA2.append(aic(axLinWPCA2[i][:,0],axLinWPCA2[i][:,1],lin_regcoefWPCA2[i].shape[0]))
+    linresidWPCA2.append(axLinWPCA2[i][:,0] - axLinWPCA2[i][:,1]) 
+# =============================================================================
+### Mean performance of each feature WRONG
+linresultsWPCA = pd.DataFrame(np.split(np.array(linresultsWPCA), 6), 
+                              columns=list_of_responses*5, 
+                              index=[list_of_responses[i] + str('_L_PCs') for i in range(len(list_of_responses))])
+print('Mean AIC without feature PCs = ', linresultsWPCA.mean(axis=1))
+linresultsWPCA2 = pd.DataFrame(np.split(np.array(linresultsWPCA2), 6), 
+                               columns=list_of_responses*5, 
+                               index=[notff3[i] + str('_L_PCs') for i in range(len(notff3))])
+print('Mean AIC with feature PCs = ', linresultsWPCA2.mean(axis=1))
+# =============================================================================
 """
 ## Plot train results, LinearRegression
 plt.bar(np.arange(0,len(trainscoreWPCA),step=1), height=trainscoreWPCA, 
@@ -709,11 +816,8 @@ plt.legend()
 plt.grid(b=None,axis='x')
 
 """
-
-
 ############################################################################
 ############################################################################
-
 #%%     Plotting Routine   ####################################################
 
 """ PC VS VARIABLES SCATTER PLOTS
@@ -761,24 +865,29 @@ plt.savefig('results4.png')
 # First two models are Ridge and Lasso.
 
 #%%    RIDGE AND LASSO  REGRESSIONS  ##########################################
+#
 lasso_regWO       = []
+lasso_coef_WO     = []
 y_predLinlassoWO  = []
 axLinlassoWO      = []
 ridge_regWO       = []
+ridge_coef_WO     = []
 y_predLinridgeWO  = []
 axLinridgeWO      = []
 #
 lasso_regW       = []
+lasso_coef_W     = []
 y_predLinlassoW  = []
 axLinlassoW      = []
 ridge_regW       = []
+ridge_coef_W     = []
 y_predLinridgeW  = []
 axLinridgeW      = []
 #
-trainscoreRWO     = []
-trainscoreRW      = []
-trainscoreLWO     = []
-trainscoreLW      = []
+trainscoreRWO    = []
+trainscoreRW     = []
+trainscoreLWO    = []
+trainscoreLW     = []
 #
 testscoreRWO     = []
 testscoreRW      = []
@@ -787,19 +896,22 @@ testscoreLW      = []
 #
 lasso_params    = {'alpha':[0.005, 0.01, 0.02, 0.05]}
 ridge_params    = {'alpha':[5,10,20,50],
-                   'solver': ['auto','svd','lsqr','saga']}
+                   'solver': ['svd','lsqr','saga']}
+#
+countiter       = []
+modelselect2WO  = []
+modelselect2W   = []
 #
 t0 = timer()
-for i in range(trainmin,trainmax):
+for train_index,test_index in tsplit.split(regdata.index):
     #print(train_index,test_index)
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses + ['ret']].iloc[train_index], regdata[list_of_responses + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[responsesL + notff3].iloc[i-trainmin:i], regdata[responsesL + notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata.iloc[train_index], regdata.iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
     # Step2: Fit standardizer to train sets
     scalefitwof    = scaler.fit(Xwof_train) # Standardize to fit train set WITHOUT FEATURE LAGS
     scalefitwf     = scaler2.fit(Xwf_train)  # Standardize to fit train set WITH FEATURE LAGS
@@ -814,98 +926,137 @@ for i in range(trainmin,trainmax):
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
 ##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
+    for resp in list_of_responses:
         for exog in notff3:
+            ## Model Selection
+            countiter.append(y_test2.columns) # Just to count the iterations
+            modelselectWO2  = [np.max([1,modelselectWO[i]]) for i in range(len(countiter))]
+            modelselectW2   = [np.max([1,modelselectW[i]]) for i in range(len(countiter))]
+            # Define lagged X w.r.t AIC
+            Xwof_train_L    = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
+                                                        maxlag0=modelselectWO2[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwof_train[[resp] + ['ret']].index[:modelselectWO2[-1]],
+                                                                                        columns=Xwof_train[[resp] + ['ret']].columns[0])
+            Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_train[[resp] + ['ret'] + [exog]],
+                                                        maxlag0=modelselectW2[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_train[[resp] + ['ret'] + [exog]].index[:modelselectW2[-1]],
+                                                                                        columns=Xwf_train[[resp] + ['ret'] + [exog]].columns[0])
+            Xwof_test_L    = sm.tsa.tsatools.lagmat2ds(Xwof_test[[resp] + ['ret']],
+                                                        maxlag0=modelselectWO2[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret']].index[:modelselectWO2[-1]],
+                                                                                        columns=Xwf_test[[resp] + ['ret']].columns[0])
+            Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_test[[resp] + ['ret'] + [exog]],
+                                                        maxlag0=modelselectW2[-1],trim='forward', 
+                                                        dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret'] + [exog]].index[:modelselectW2[-1]],
+                                                                                        columns=Xwf_test[[resp] + ['ret'] + [exog]].columns[0])
+            # Train models
             model        = {'LassoWO': GridSearchCV(Lasso(fit_intercept=False, normalize=False, 
                                                           random_state=42, selection='random', 
-                                                          max_iter=1000, tol=0.001), 
+                                                          max_iter=1000), 
                                           param_grid=lasso_params, 
                                           scoring='neg_mean_squared_error',
                                           return_train_score=True, 
-                                          cv=tsplit.split(Xwof_train.index), iid=True).fit(Xwof_train[respL], y_train2[resp]).best_estimator_, 
+                                          cv=tsplit.split(Xwof_train_L.index), iid=True).fit(Xwof_train_L, y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]).best_estimator_, 
                             'LassoW':  GridSearchCV(Lasso(fit_intercept=False, normalize=False, 
                                                           random_state=42, selection='random', 
-                                                          max_iter=1000, tol=0.001), 
+                                                          max_iter=1000), 
                                           param_grid=lasso_params, 
                                           scoring='neg_mean_squared_error', 
                                           return_train_score=True, 
-                                          cv=tsplit.split(Xwof_train.index), iid=True).fit(Xwf_train[[respL] + [exog]], y_train2[resp]).best_estimator_,
+                                          cv=tsplit.split(Xwf_train_L.index), iid=True).fit(Xwf_train_L, y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_,
                             'RidgeWO': GridSearchCV(Ridge(fit_intercept=False, normalize=False, 
                                                           random_state=42, 
-                                                          max_iter=1000, tol=0.001), 
+                                                          max_iter=1000), 
                                           param_grid=ridge_params, 
                                           scoring='neg_mean_squared_error', 
                                           return_train_score=True, 
-                                          cv=tsplit.split(Xwof_train.index), iid=True).fit(Xwof_train[respL], y_train2[resp]).best_estimator_,
+                                          cv=tsplit.split(Xwof_train_L.index), iid=True).fit(Xwof_train_L, y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]).best_estimator_,
                             'RidgeW':  GridSearchCV(Ridge(fit_intercept=False, normalize=False, 
                                                           random_state=42, 
-                                                          max_iter=1000, tol=0.001), 
+                                                          max_iter=1000), 
                                           param_grid=ridge_params, 
                                           scoring='neg_mean_squared_error', 
                                           return_train_score=True, 
-                                          cv=tsplit.split(Xwof_train.index), iid=True).fit(Xwf_train[[respL] + [exog]], y_train2[resp]).best_estimator_,
+                                          cv=tsplit.split(Xwf_train_L.index), iid=True).fit(Xwf_train_L, y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_,
                             }
             ## RIDGE Predictions
             ridge_regWO.append(model['RidgeWO'])
-            y_predLinridgeWO.append(ridge_regWO[len(ridge_regWO)-1].predict(Xwof_test[respL]))
-            axLinridgeWO.append(np.array([y_test2[resp], y_predLinridgeWO[len(ridge_regWO)-1]]).T)
+            ridge_coef_WO.append(ridge_regWO[-1].coef_)
+            y_predLinridgeWO.append(ridge_regWO[-1].predict(Xwof_test_L))
+            axLinridgeWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)],
+                                          y_predLinridgeWO[-1]]).T)
             ridge_regW.append(model['RidgeW'])
-            y_predLinridgeW.append(ridge_regW[len(ridge_regW)-1].predict(Xwf_test[[respL] + [exog]]))
-            axLinridgeW.append(np.array([y_test2[resp], y_predLinridgeW[len(ridge_regW)-1]]).T)
+            ridge_coef_W.append(ridge_regW[-1].coef_)
+            y_predLinridgeW.append(ridge_regW[-1].predict(Xwf_test_L))
+            axLinridgeW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                         y_predLinridgeW[-1]]).T)
             ## LASSO Predictions
             lasso_regWO.append(model['LassoWO'])
-            y_predLinlassoWO.append(lasso_regWO[len(lasso_regWO)-1].predict(Xwof_test[respL]))
-            axLinlassoWO.append(np.array([y_test2[resp], y_predLinlassoWO[len(lasso_regWO)-1]]).T)
+            lasso_coef_WO.append(lasso_regWO[-1].coef_)
+            y_predLinlassoWO.append(lasso_regWO[-1].predict(Xwof_test_L))
+            axLinlassoWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)], 
+                                          y_predLinlassoWO[-1]]).T)
             lasso_regW.append(model['LassoW'])
-            y_predLinlassoW.append(lasso_regW[len(lasso_regW)-1].predict(Xwf_test[[respL] + [exog]]))
-            axLinlassoW.append(np.array([y_test2[resp], y_predLinlassoW[len(lasso_regW)-1]]).T)
-            ## Performances
-            ## Compare train set performance
-            trainscoreRWO.append(model['RidgeWO'].score(Xwof_train[respL], y_train2[resp]))
-            trainscoreLWO.append(model['LassoWO'].score(Xwof_train[respL], y_train2[resp]))
-            trainscoreRW.append(model['RidgeW'].score(Xwf_train[[respL] + [exog]], y_train2[resp]))
-            trainscoreLW.append(model['LassoW'].score(Xwf_train[[respL] + [exog]], y_train2[resp]))
+            lasso_coef_W.append(lasso_regW[-1].coef_)
+            y_predLinlassoW.append(lasso_regW[-1].predict(Xwf_test_L))
+            axLinlassoW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                         y_predLinlassoW[-1]]).T)
+# =============================================================================
+#             ## Performances
+#             ## Compare train set performance
+#             trainscoreRWO.append(model['RidgeWO'].score(Xwof_train[[respL]], y_train2[resp]))
+#             trainscoreLWO.append(model['LassoWO'].score(Xwof_train[[respL]], y_train2[resp]))
+#             trainscoreRW.append(model['RidgeW'].score(Xwf_train[[respL] + [exog]], y_train2[resp]))
+#             trainscoreLW.append(model['LassoW'].score(Xwf_train[[respL] + [exog]], y_train2[resp]))
+#             ## Compare test set performance
+#             testscoreRWO.append(model['RidgeWO'].score(Xwof_test[[respL]], y_test2[resp]))
+#             testscoreLWO.append(model['LassoWO'].score(Xwof_test[[respL]], y_test2[resp]))
+#             testscoreRW.append(model['RidgeW'].score(Xwf_test[[respL] + [exog]], y_test2[resp]))
+#             testscoreLW.append(model['LassoW'].score(Xwf_test[[respL] + [exog]], y_test2[resp]))
+# =============================================================================
 t1 = timer()
 print(t1-t0)
-
-cols = int(len(axLinridgeWO)*2/(trainmax-trainmin))
-
-# Restructure predictions so that all of them are in one matrix. 
+# =============================================================================
+## Alternative scoring on test set: AIC
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-y_predLinridgeWO    = np.array(axLinridgeWO).squeeze().reshape(trainmax-trainmin,cols)
-y_predLinridgeW     = np.array(axLinridgeW).squeeze().reshape(trainmax-trainmin,cols)
-y_predLinlassoWO    = np.array(axLinlassoWO).squeeze().reshape(trainmax-trainmin,cols)
-y_predLinlassoW     = np.array(axLinlassoW).squeeze().reshape(trainmax-trainmin,cols)
+ridge_coef_WO       = np.array(ridge_coef_WO)
+ridge_coef_W        = np.array(ridge_coef_W)
+lasso_coef_WO       = np.array(lasso_coef_WO)
+lasso_coef_W        = np.array(lasso_coef_W)
 ridgeresultsWO      = []
-axLinridgeWO        = []
+ridgeresidWO        = []
 lassoresultsWO      = []
-axLinlassoWO        = []
+lassoresidWO        = []
 ridgeresultsW       = []
-axLinridgeW         = []
+ridgeresidW         = []
 lassoresultsW       = []
-axLinlassoW         = []
+lassoresidW         = []
 # Get the results
-for i in range(0,y_predLinridgeWO.shape[1]-1,2):
-    ridgeresultsWO.append(r2_score(y_predLinridgeWO[1:,i],y_predLinridgeWO[:-1,i+1]))
-    ridgeresultsW.append(r2_score(y_predLinridgeW[1:,i],y_predLinridgeW[:-1,i+1]))
-    lassoresultsWO.append(r2_score(y_predLinlassoWO[1:,i],y_predLinlassoWO[:-1,i+1]))
-    lassoresultsW.append(r2_score(y_predLinlassoW[1:,i],y_predLinlassoW[:-1,i+1]))
-    axLinridgeWO.append(np.array([y_predLinridgeWO[:,i],y_predLinridgeWO[:,i+1]]).T)
-    axLinridgeW.append(np.array([y_predLinridgeW[:,i],y_predLinridgeW[:,i+1]]).T)
-    axLinlassoWO.append(np.array([y_predLinlassoWO[:,i],y_predLinlassoWO[:,i+1]]).T)
-    axLinlassoW.append(np.array([y_predLinlassoW[:,i],y_predLinlassoW[:,i+1]]).T)
-
+for i in range(0,len(y_predLinridgeW)):
+    ridgeresultsWO.append(aic(axLinridgeWO[i][:,0],axLinridgeWO[i][:,1],ridge_coef_WO[i].shape[0]))
+    ridgeresidWO.append(axLinridgeWO[i][:,0] - axLinridgeWO[i][:,1])
+    ridgeresultsW.append(aic(axLinridgeW[i][:,0],axLinridgeW[i][:,1],ridge_coef_W[i].shape[0]))
+    ridgeresidW.append(axLinridgeW[i][:,0] - axLinridgeW[i][:,1])
+    lassoresultsWO.append(aic(axLinlassoWO[i][:,0],axLinlassoWO[i][:,1],lasso_coef_WO[i].shape[0]))
+    lassoresidWO.append(axLinlassoWO[i][:,0] - axLinlassoWO[i][:,1])
+    lassoresultsW.append(aic(axLinlassoW[i][:,0],axLinlassoW[i][:,1],lasso_coef_W[i].shape[0]))
+    lassoresidW.append(axLinlassoW[i][:,0] - axLinlassoW[i][:,1])
+# =============================================================================
 ### Mean performance of each feature
-ridgeresultsWO = pd.DataFrame(np.split(np.array(ridgeresultsWO), 6), columns=list_of_responses, index=responsesL)
-print('Mean R2 score without feature = ', ridgeresultsWO.mean(axis=1))
-ridgeresultsW  = pd.DataFrame(np.split(np.array(ridgeresultsW), 6), columns=notff3, index=list_of_responses).T
-print('Mean of R2 score with feature = ', ridgeresultsW.mean(axis=1))
-lassoresultsWO = pd.DataFrame(np.split(np.array(lassoresultsWO), 6), columns=list_of_responses, index=responsesL)
-print('Mean R2 score without feature = ', lassoresultsWO.mean(axis=1))
-lassoresultsW  = pd.DataFrame(np.split(np.array(lassoresultsW), 6), columns=notff3, index=list_of_responses).T
-print('Mean of R2 score with feature = ', lassoresultsW.mean(axis=1))
-
-sns.regplot(Xwf_trainPCA['PC13'], y_train2[list_of_responses[-1]])
+ridgeresultsWO = pd.DataFrame(np.split(np.array(ridgeresultsWO), 6), columns=list_of_responses*5, 
+                              index=[list_of_responses[i] + str('_L') for i in range(len(list_of_responses))])
+print('RIDGEWO: Mean AIC without feature = ', ridgeresultsWO.mean(axis=1))
+ridgeresultsW  = pd.DataFrame(np.split(np.array(ridgeresultsW), 6), columns=list_of_responses*5, 
+                              index=[notff3[i] + str('_L') for i in range(len(notff3))])
+print('RIDGEW: Mean AIC with feature = ', ridgeresultsW.mean(axis=1))
+lassoresultsWO = pd.DataFrame(np.split(np.array(lassoresultsWO), 6), columns=list_of_responses*5, 
+                              index=[list_of_responses[i] + str('_L') for i in range(len(list_of_responses))])
+print('LASSOWO: Mean AIC without feature = ', lassoresultsWO.mean(axis=1))
+lassoresultsW  = pd.DataFrame(np.split(np.array(lassoresultsW), 6), columns=list_of_responses*5, 
+                              index=[notff3[i] + str('_L') for i in range(len(notff3))])
+print('LASSOW: Mean AIC with feature = ', lassoresultsW.mean(axis=1))
+# =============================================================================
 
 """
 ## Plot train results,
@@ -927,12 +1078,15 @@ plt.grid(b=None,axis='x')
 
 
 #%% RIDGE AND LASSO REGRESSIONS WITH PCS #####################################
-
+#
 #
 lasso_regWPCA       = []
+lasso_coef_WPCA     = []
 y_predLinlassoWPCA  = []
 axLinlassoWPCA      = []
+#
 ridge_regWPCA       = []
+ridge_coef_WPCA     = []
 y_predLinridgeWPCA  = []
 axLinridgeWPCA      = []
 #
@@ -942,18 +1096,20 @@ trainscoreLWPCA     = []
 testscoreRWPCA      = []
 testscoreLWPCA      = []
 #
-regdataPC2       = []
+countiter           = []
+modelselect2WO      = []
+modelselect2W       = []
+#
 t0 = timer()
-for i in range(trainmin,trainmax):
+for train_index,test_index in tsplit.split(regdata.index):
     #print(train_index,test_index)
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[responsesL + ['ret']].iloc[train_index], regdata[responsesL + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[notff3].iloc[i-trainmin:i], regdata[notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata[responsesL + ['ret'] + notff3].iloc[train_index], regdata[responsesL + ['ret'] + notff3].iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
     # Step2: Fit standardizer to train set
     scalefitwf     = scaler2.fit(Xwf_train)
     # Step3: Standardize train AND test sets WITHOUT FEATURES and their lags
@@ -999,42 +1155,62 @@ for i in range(trainmin,trainmax):
                                           cv=tsplit.split(Xwf_train.index), iid=True).fit(Xwf_trainPCA[[respL] + [pc]], y_train2[resp]).best_estimator_,}
             ## RIDGE Predictions
             ridge_regWPCA.append(model['RidgeWPCA'])
+            ridge_coef_WPCA.append(ridge_regWPCA[len(ridge_regWPCA)-1].coef_)
             y_predLinridgeWPCA.append(ridge_regWPCA[len(ridge_regWPCA)-1].predict(Xwf_testPCA[[respL] + [pc]]))
             axLinridgeWPCA.append(np.array([y_test2[resp], y_predLinridgeWPCA[len(ridge_regWPCA)-1]]).T)
             ## LASSO Predictions
             lasso_regWPCA.append(model['LassoWPCA'])
+            lasso_coef_WPCA.append(lasso_regWPCA[len(lasso_regWPCA)-1].coef_)
             y_predLinlassoWPCA.append(lasso_regWPCA[len(lasso_regWPCA)-1].predict(Xwf_testPCA[[respL] + [pc]]))
             axLinlassoWPCA.append(np.array([y_test2[resp], y_predLinlassoWPCA[len(lasso_regWPCA)-1]]).T)
             ## Performances
             ## Compare train set performance
             trainscoreRWPCA.append(model['RidgeWPCA'].score(Xwf_trainPCA[[respL] + [pc]], y_train2[resp]))
             trainscoreLWPCA.append(model['LassoWPCA'].score(Xwf_trainPCA[[respL] + [pc]], y_train2[resp]))
+            ## Compare test set performance
+            testscoreRW.append(model['RidgeWPCA'].score(Xwf_testPCA[[respL] + [pc]], y_test2[resp]))
+            testscoreLW.append(model['LassoWPCA'].score(Xwf_testPCA[[respL] + [pc]], y_test2[resp]))
 t1 = timer()
 print(t1-t0)
 
-# Restructure predictions so that all of them are in one matrix. 
+## Alternative scoring on test set: Adjusted R-squared
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-cols                = int(np.size(axLinridgeWPCA)/(trainmax-trainmin))
-y_predLinridgeWPCA  = np.array(axLinridgeWPCA).squeeze().reshape(trainmax-trainmin,cols)
-y_predLinlassoWPCA  = np.array(axLinlassoWPCA).squeeze().reshape(trainmax-trainmin,cols)
+y_predLinridgeWPCA  = np.array(axLinridgeWPCA)
+y_predLinlassoWPCA  = np.array(axLinlassoWPCA)
+ridge_coef_WPCA     = np.array(ridge_coef_WPCA)
+lasso_coef_WPCA     = np.array(lasso_coef_WPCA)
 ridgeresultsWPCA    = []
-axLinridgeWPCA      = []
+ridgeresidWPCA      = []
 lassoresultsWPCA    = []
-axLinlassoWPCA      = []
+lassoresidWPCA      = []
 # Get the results
-for i in range(0,y_predLinridgeWO.shape[1]-1,2):
-    ridgeresultsWPCA.append(r2_score(y_predLinridgeW[1:,i],y_predLinridgeW[:-1,i+1]))
-    lassoresultsWPCA.append(r2_score(y_predLinlassoW[1:,i],y_predLinlassoW[:-1,i+1]))
-    axLinridgeWPCA.append(np.array([y_predLinridgeW[:,i],y_predLinridgeW[:,i+1]]).T)
-    axLinlassoWPCA.append(np.array([y_predLinlassoW[:,i],y_predLinlassoW[:,i+1]]).T)
-
+for i in range(0,y_predLinridgeWPCA.shape[0]):
+    ridgeresultsWPCA.append(adj_r2_score(y_predLinridgeWPCA[i,:,0],y_predLinridgeWPCA[i,:,1],ridge_coef_WPCA.shape[1]))
+    ridgeresidWPCA.append(y_predLinridgeWPCA[i,:,0] - y_predLinridgeWPCA[i,:,1])
+    lassoresultsWPCA.append(adj_r2_score(y_predLinlassoWPCA[i,:,0],y_predLinlassoWPCA[i,:,1],lasso_coef_WPCA.shape[1]))
+    lassoresidWPCA.append(y_predLinlassoWPCA[i,:,0] - y_predLinlassoWPCA[i,:,1])
+#
 ### Mean performance of each feature
-ridgeresultsWPCA = pd.DataFrame(np.split(np.array(ridgeresultsWPCA), 6), columns=notff3, index=list_of_responses).T
-print('Mean of R2 score with feature = ', ridgeresultsWPCA.mean(axis=1))
-lassoresultsWPCA = pd.DataFrame(np.split(np.array(lassoresultsWPCA), 6), columns=notff3, index=list_of_responses).T
-print('Mean of R2 score with feature = ', lassoresultsWPCA.mean(axis=1))
-
-sns.regplot(Xwf_trainPCA['PC13'], y_train2[list_of_responses[-1]])
+ridgeresultsWPCA = pd.DataFrame(np.split(np.array(ridgeresultsWPCA), 6), columns=list_of_responses*5, index=notff3)
+print('RIDGEWPCA: Mean of R2 score with feature = ', ridgeresultsWPCA.mean(axis=1))
+lassoresultsWPCA = pd.DataFrame(np.split(np.array(lassoresultsWPCA), 6), columns=list_of_responses*5, index=notff3)
+print('LASSOWPCA: Mean of R2 score with feature = ', lassoresultsWPCA.mean(axis=1))
+# =============================================================================
+# cols                = int(np.size(axLinridgeWPCA)/(trainmax-trainmin))
+# y_predLinridgeWPCA  = np.array(axLinridgeWPCA).squeeze().reshape(trainmax-trainmin,cols)
+# y_predLinlassoWPCA  = np.array(axLinlassoWPCA).squeeze().reshape(trainmax-trainmin,cols)
+# ridgeresultsWPCA    = []
+# axLinridgeWPCA      = []
+# lassoresultsWPCA    = []
+# axLinlassoWPCA      = []
+# # Get the results
+# for i in range(0,y_predLinridgeWO.shape[1],2):
+#     ridgeresultsWPCA.append(r2_score(y_predLinridgeW[1:,i],y_predLinridgeW[:-1,i+1]))
+#     lassoresultsWPCA.append(r2_score(y_predLinlassoW[1:,i],y_predLinlassoW[:-1,i+1]))
+#     axLinridgeWPCA.append(np.array([y_predLinridgeW[:,i],y_predLinridgeW[:,i+1]]).T)
+#     axLinlassoWPCA.append(np.array([y_predLinlassoW[:,i],y_predLinlassoW[:,i+1]]).T)
+# =============================================================================
 """
 ## Plot train results,
 plt.bar(np.arange(0,len(trainscoreRWO),step=1), height=trainscoreRWO, 
@@ -1054,63 +1230,68 @@ plt.grid(b=None,axis='x')
 
 #%% RANDOM FOREST FEATURE SELECTION ###########################################
 
-# Defining grid for Gridsearch cross validation
+## Defining grid for Gridsearch cross validation ##
 
-n_estimators      = [5]
+n_estimators      = [200]
+# Server execution uses:
+#[int(x) for x in np.linspace(start = 50, stop = 500, num = 3)]
 
-#[int(x) for x in np.linspace(start = 50, stop = 200, num = 3)]
+# Number of features to consider at every split
+max_features      = ['auto', 'sqrt']
+# Maximum number of levels in tree
+max_depth         = [10, None] 
+# Server execution uses:
+# [int(x) for x in np.linspace(10, 100, num = 3)]
+# max_depth.append(None)
 
-max_features      = ['auto'] # Number of features to consider at every split
-
-max_depth         = [10, None] # Maximum number of levels in tree
-
-#[int(x) for x in np.linspace(10, 100, num = 3)]
-#max_depth.append(None)
-
-min_samples_split = [2,10,20] # Minimum number of samples required to split a node
-
-min_samples_leaf  = [2,10,20] # Minimum number of samples required at each leaf node
+# Minimum number of samples required to split a node
+min_samples_split = [2,10,20] 
+# Minimum number of samples required at each leaf node
+min_samples_leaf  = [2,10,20] 
 # Method of selecting samples for training each tree
-bootstrap         = [True] # Create the random grid
-
+bootstrap         = [True] 
+# Create the random grid
 random_grid       = {'n_estimators': n_estimators,
                      'max_features': max_features,
                      'max_depth': max_depth,
                      'min_samples_split': min_samples_split,
                      'min_samples_leaf': min_samples_leaf,
                      'bootstrap': bootstrap}
-
 # Define Random Forest Regressor as estimator for regression
-RFR              = RandomForestRegressor() 
-# Define Random Forest Classifier as estimator for classification
-RFC              = RandomForestClassifier()
-
-##### Simple Cross-Validation with no expanding window. 
-
+RFR              = RandomForestRegressor(oob_score=True) 
 
 ## RANDOM FOREST ####
+#
 forest_regWO     = []
 axRFRWO          = []
 ypredforestWO    = []
-
+#
 forest_regW      = []
 axRFRW           = []
 ypredforestW     = []
-
+#
+trainscore_forestWO = []
+trainscore_forestW  = []
+testscore_forestWO  = []
+testscore_forestW   = []
+#
+countiter         = []
+modelselectWORFR  = []
+modelselectWRFR   = []
+#
 t0 = timer()
-for i in range(trainmin,trainmax):
-    #print(train_index,test_index)
+for train_index,test_index in tsplit.split(regdata.index):
+    #print(range(i-trainmin,i))
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses + ['ret']].iloc[train_index], regdata[list_of_responses + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[responsesL + notff3].iloc[i-trainmin:i], regdata[responsesL + notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata[list_of_responses + ['ret'] + notff3].iloc[train_index], regdata[list_of_responses + ['ret'] + notff3].iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
     # Step2: Fit standardizer to train sets
-    scalefitwof    = scaler.fit(Xwof_train)
-    scalefitwf     = scaler2.fit(Xwf_train)
+    scalefitwof    = scaler.fit(Xwof_train) # Standardize to fit train set WITHOUT FEATURE LAGS
+    scalefitwf     = scaler2.fit(Xwf_train)  # Standardize to fit train set WITH FEATURE LAGS
     # Step3: Standardize train AND test sets WITHOUT FEATURES nor their lags
     Xwof_train     = pd.DataFrame(scalefitwof.transform(Xwof_train), columns=Xwof_train.columns,index=Xwof_train.index)
     Xwof_test      = pd.DataFrame(scalefitwof.transform(Xwof_test), columns=Xwof_test.columns,index=Xwof_test.index)
@@ -1122,44 +1303,84 @@ for i in range(trainmin,trainmax):
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
 ##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
-        # Set GridSearchCV 
+    for resp in list_of_responses:
+        ## Model Selection
+        #countiter.append(y_test2.columns) # Just to count the iterations
+        #modelselectWORFR  = [np.max([1,modelselectWO[i]]) for i in range(len(countiter))]
+        #modelselectWRFR   = [np.max([1,modelselectW[i]]) for i in range(len(countiter))]
+        # Define lagged X w.r.t AIC
+        Xwof_train_L    = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
+                                                    maxlag0=1,trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwof_train[[resp] + ['ret']].index[:1],
+                                                                                    columns=Xwof_train[[resp] + ['ret']].columns[0])
+        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_train[[resp] + ['ret'] + notff3],
+                                                    maxlag0=1,trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_train[[resp] + ['ret'] + notff3].index[:1],
+                                                                                    columns=Xwf_train[[resp] + ['ret'] + notff3].columns[0])
+        Xwof_test_L    = sm.tsa.tsatools.lagmat2ds(Xwof_test[[resp] + ['ret']],
+                                                    maxlag0=1,trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwof_test[[resp] + ['ret']].index[:1],
+                                                                                    columns=Xwof_test[[resp] + ['ret']].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_test[[resp] + ['ret'] + notff3],
+                                                    maxlag0=1,trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret'] + notff3].index[:1],
+                                                                                    columns=Xwf_test[[resp] + ['ret'] + notff3].columns[0])
+        # Train models
         model   = {'RFRWO': GridSearchCV(RFR, param_grid=random_grid, 
-                                       scoring='neg_mean_squared_error',
-                                       return_train_score=True, cv=tsplit.split(Xwof_train.index),
-                                       iid=True, n_jobs=-1).fit(Xwof_train[respL], y_train2[resp]).best_estimator_,
-                   'RFRW': GridSearchCV(RFR, param_grid=random_grid, scoring='neg_mean_squared_error',
-                                        return_train_score=True, cv=tsplit.split(Xwf_train.index),
-                                        iid=True, n_jobs=-1).fit(Xwf_train[[respL] + notff3], y_train2[resp]).best_estimator_}
+                                       scoring='neg_mean_squared_error', 
+                                       cv=tsplit.split(Xwof_train_L.index),
+                                       iid=True, n_jobs=-1).fit(Xwof_train_L, 
+                                                                y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]).best_estimator_,
+                   'RFRW': GridSearchCV(RFR, param_grid=random_grid, 
+                                        scoring='neg_mean_squared_error',
+                                        cv=tsplit.split(Xwf_train_L.index),
+                                        iid=True, n_jobs=-1).fit(Xwf_train_L, 
+                                                                 y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_}
         ## Random Forest Regression
-        forest_regWO.append(model['RFRWO'])
-        ypredforestWO.append(forest_regWO[len(forest_regWO)-1].predict(Xwof_test[respL]))
-        axRFRWO.append(np.array([y_test2[resp], ypredforestWO[len(forest_regWO)-1]]).T)
-        forest_regW.append(model['RFRW'])
-        ypredforestW.append(forest_regW[len(forest_regW)-1].predict(Xwf_test[[respL] + notff3]))
-        axRFRW.append(np.array([y_test2[resp], ypredforestW[len(forest_regW)-1]]).T)
-        ## Random Forest Classification
-        #forest_clas.append(model['RFRW'])
-        #ypredforestclas.append(forest_clas[len(forest_clas)-1].predict(Xwf_test))
-        #axRFC.append(np.array([y_test1[resp], ypredforestclas[len(forest_clas)-1]]).T)
+        forest_regWO.append(model['RFRWO'].fit(Xwof_train_L, 
+                            y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]))
+        ypredforestWO.append(forest_regWO[len(forest_regWO)-1].predict(Xwof_test_L))
+        axRFRWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)], 
+                                 ypredforestWO[len(forest_regWO)-1]]).T)
+        forest_regW.append(model['RFRW'].fit(Xwf_train_L, 
+                            y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ypredforestW.append(forest_regW[len(forest_regW)-1].predict(Xwf_test_L))
+        axRFRW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                ypredforestW[len(forest_regW)-1]]).T)
+        ## Performances
+        ## Compare train set performance
+        trainscore_forestWO.append(model['RFRWO'].score(Xwof_train_L, 
+                                                        y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]))
+        trainscore_forestW.append(model['RFRW'].score(Xwf_train_L, 
+                                                      y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ## Compare test set performance
+        testscore_forestWO.append(model['RFRWO'].score(Xwof_test_L, 
+                                                       y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)]))
+        testscore_forestW.append(model['RFRW'].score(Xwf_test_L, 
+                                                     y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
 t1 = timer()
 print(t1-t0)
-
-cols            = int(np.size(axRFRWO)/(trainmax-trainmin))
-# Restructure predictions so that all of them are in one matrix. 
+# =============================================================================
+## Alternative scoring on test set: AIC
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-ypredforestWO   = np.array(axRFRWO).squeeze().reshape(trainmax-trainmin,cols)
-ypredforestW    = np.array(axRFRW).squeeze().reshape(trainmax-trainmin,cols)
-forestresultsWO = []
-axRFRWO         = []
-forestresultsW  = []
-axRFRW          = []
-for i in range(0,ypredforestWO.shape[1]-1,2):
-    forestresultsWO.append(r2_score(ypredforestWO[1:,i],ypredforestWO[:-1,i+1]))
-    axRFRWO.append(np.array([ypredforestWO[:,i],ypredforestWO[:,i+1]]).T)
-    forestresultsW.append(r2_score(ypredforestW[1:,i],ypredforestW[:-1,i+1]))
-    axRFRW.append(np.array([ypredforestW[:,i],ypredforestW[:,i+1]]).T)
-
+RFRresultsWO = []
+RFRresidWO   = []
+RFRresultsW  = []
+RFRresidW    = []
+# Get the results
+for i in range(0,len(axRFRWO)):
+    RFRresultsWO.append(aic(axRFRWO[i][:,0],axRFRWO[i][:,1], forest_regWO[i].n_features_))
+    RFRresidWO.append(axRFRWO[i][:,0] - axRFRWO[i][:,1])  
+    RFRresultsW.append(aic(axRFRW[i][:,0],axRFRW[i][:,1],forest_regW[i].n_features_))
+    RFRresidW.append(axRFRW[i][:,0] - axRFRW[i][:,1]) 
+# =============================================================================
+### Mean performance of each feature
+RFRresultsWO = pd.DataFrame(np.split(np.array(RFRresultsWO), 6), columns=list_of_responses*5, index=[list_of_responses[i] + str('_L') for i in range(len(list_of_responses))])
+print('Mean AIC without feature = ', linresultsWO.mean(axis=1))
+RFRresultsW  = pd.DataFrame(np.split(np.array(RFRresultsW), 6), columns=list_of_responses*5, index=[notff3[i] + str('_L') for i in range(len(notff3))])
+print('Mean AIC with feature = ', linresultsW.mean(axis=1))
+# =============================================================================
 FI              = []
 FII = pd.DataFrame()
 for i in range(len(forest_regW)):
@@ -1245,7 +1466,7 @@ cols                = int(np.size(axRFRWPCA)/(trainmax-trainmin))
 ypredforestWPCA     = np.array(axRFRWPCA).squeeze().reshape(trainmax-trainmin,cols)
 forestresultsWPCA   = []
 axRFRWPCA           = []
-for i in range(0,ypredforestWPCA.shape[1]-1,2):
+for i in range(0,ypredforestWPCA.shape[1],2):
     forestresultsWPCA.append(r2_score(ypredforestWPCA[1:,i],ypredforestWPCA[:-1,i+1]))
     axRFRWPCA.append(np.array([ypredforestWPCA[1:,i],ypredforestWPCA[:-1,i+1]]).T)
 

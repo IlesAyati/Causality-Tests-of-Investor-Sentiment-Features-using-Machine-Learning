@@ -4,7 +4,7 @@ Created on Fri Sep 20 00:18:08 2019
 
 @author: yeeya
 """
-
+from statsmodels.tsa.vector_ar.var_model1 import VAR
 # %% Vector Autoregression ###################################################
 #
 ###### Cointegration test ####################################################
@@ -21,10 +21,9 @@ for i in range(len(Pdata2Price.columns)):
         ERCO.append(sm.tsa.stattools.coint(Pdata2Price.loc[:,Pdata2Price.columns[i]],
                                            data2Price.loc[:,data2Price.columns[j]],
                                            maxlag=None))
-# The features are not cointegrated with the portfolios
+# The features are not cointegrated with the portfolios --> Normal VAR feasible.
 ##############################################################################
 #
-from statsmodels.tsa.vector_ar.var_model1 import VAR
 #### VAR 1
 # Using lagged values of responses and features to test for causality (individual)
 var1        = []
@@ -39,9 +38,9 @@ var1pvals   = []
 var11pvals  = []
 for resp in list_of_responses:
     for exog in notff3:
-        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(method='mle', maxlags=None, ic='aic', trend='c'))
-        varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=['ret',resp, exog], kind='f', signif=0.05))
-        varesults11.append(var1[len(var1)-1].test_causality(caused=resp,causing=['ret',resp], kind='f', signif=0.05))
+        var1.append(VAR(regdata[[resp,'ret',exog]], dates=regdata.index).fit(method='ols', maxlags=None, ic='aic', trend='c'))
+        varesults1.append(var1[len(var1)-1].test_causality(caused=resp, causing=exog, kind='f', signif=0.05))
+        varesults11.append(var1[len(var1)-1].test_causality(caused=exog,causing=resp, kind='f', signif=0.05))
         var1aic.append(var1[len(var1)-1].aic)
         var1pvals.append(varesults1[len(var1)-1].pvalue)
         var11pvals.append(varesults11[len(var1)-1].pvalue)
@@ -52,7 +51,29 @@ for resp in list_of_responses:
         print(var1[len(var1)-1].summary())
 #
 ### Mean performance of each feature 
-var1pvals   = pd.DataFrame(np.split(np.array(var1pvals), 6), columns=list_of_responses, index=notff3) 
-print('Mean of p-values per feature = ', var1pvals.mean(axis=0))
-var11pvals   = pd.DataFrame(np.split(np.array(var11pvals), 6), columns=notff3, index=list_of_responses) 
-print('Mean of p-values per feature = ', var11pvals.mean(axis=0))
+var1pvals   = pd.DataFrame(np.split(np.array(var1pvals), 6), columns=notff3, index=list_of_responses).T.round(4)
+print('Mean of p-values per lagged feature = ', var1pvals.mean(axis=1))
+var11pvals   = pd.DataFrame(np.split(np.array(var11pvals), 6), columns=list_of_responses, index=notff3).T.round(4)
+print('Mean of p-values per lagged response = ', var11pvals.mean(axis=1))
+
+# Adding significance indicator inside dataframes
+# Copy of pvalue dataframes: 
+aux1pvals = var1pvals
+aux11pvals = var11pvals
+# creating masks to add indication for significance of the coefficients
+# Feat --> Resp
+r1 = var1pvals.applymap(lambda x: '{}*'.format(x))
+r2 = var1pvals.applymap(lambda x: '{}**'.format(x))
+r3 = var1pvals.applymap(lambda x: '{}***'.format(x))
+# Apply where appropriate
+var1pvals = var1pvals.mask(np.abs(aux1pvals.values)<=0.1,r1)
+var1pvals = var1pvals.mask(np.abs(aux1pvals.values)<=0.05,r2)
+var1pvals = var1pvals.mask(np.abs(aux1pvals.values)<=0.01,r3)
+# Repeat for the other direction: Resp --> Feat
+r1 = var11pvals.applymap(lambda x: '{}*'.format(x))
+r2 = var11pvals.applymap(lambda x: '{}**'.format(x))
+r3 = var11pvals.applymap(lambda x: '{}***'.format(x))
+# Apply where appropriate
+var11pvals = var11pvals.mask(np.abs(aux11pvals.values)<=0.1,r1)
+var11pvals = var11pvals.mask(np.abs(aux11pvals.values)<=0.05,r2)
+var11pvals = var11pvals.mask(np.abs(aux11pvals.values)<=0.01,r3)

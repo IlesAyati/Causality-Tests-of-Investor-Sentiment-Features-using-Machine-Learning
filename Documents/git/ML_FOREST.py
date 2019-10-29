@@ -1,44 +1,36 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Sep 20 00:45:26 2019
-
-@author: yeeya
-"""
-
 #%% RANDOM FOREST FEATURE SELECTION ###########################################
 
-# Defining grid for Gridsearch cross validation ##############################
-n_estimators      = [5]
+## Defining grid for Gridsearch cross validation ##
+n_estimators      = [100]
+# Server execution uses:
+#[int(x) for x in np.linspace(start = 50, stop = 500, num = 3)]
 
-# Server execution:
-# [int(x) for x in np.linspace(start = 50, stop = 200, num = 3)]
-
-max_features      = ['auto'] # Number of features to consider at every split
-
-max_depth         = [10, None] # Maximum number of levels in tree
-
-# Server execution:
-#[int(x) for x in np.linspace(10, 100, num = 3)]
-#max_depth.append(None)
+# Number of features to consider at every split
+max_features      = ['auto', 'sqrt']
+# Maximum number of levels in tree
+max_depth         = [10, None] 
+# Server execution uses:
+# [int(x) for x in np.linspace(10, 100, num = 3)]
+# max_depth.append(None)
 
 # Minimum number of samples required to split a node
 min_samples_split = [2,10,20] 
 # Minimum number of samples required at each leaf node
 min_samples_leaf  = [2,10,20] 
 # Method of selecting samples for training each tree
-bootstrap         = [True] # Create the random grid
-
+bootstrap         = [True] 
+# Create the random grid
 random_grid       = {'n_estimators': n_estimators,
                      'max_features': max_features,
                      'max_depth': max_depth,
                      'min_samples_split': min_samples_split,
                      'min_samples_leaf': min_samples_leaf,
                      'bootstrap': bootstrap}
-
 # Define Random Forest Regressor as estimator for regression
-RFR              = RandomForestRegressor() 
+RFR              = RandomForestRegressor(oob_score=True) 
+
+## RANDOM FOREST ####
 #
-## RANDOM FOREST #############################################################
 forest_regWO     = []
 axRFRWO          = []
 ypredforestWO    = []
@@ -47,20 +39,28 @@ forest_regW      = []
 axRFRW           = []
 ypredforestW     = []
 #
+trainscore_forestWO = []
+trainscore_forestW  = []
+testscore_forestWO  = []
+testscore_forestW   = []
+#
+countiter         = []
+modelselectWORFR  = []
+modelselectWRFR   = []
+#
 t0 = timer()
-for i in range(trainmin,trainmax):
-    #print(train_index,test_index)
+for train_index,test_index in tsplit.split(regdata.index):
+    #print(range(i-trainmin,i))
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses + ['ret']].iloc[train_index], regdata[list_of_responses + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[responsesL + notff3].iloc[i-trainmin:i], regdata[responsesL + notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata[list_of_responses + ['ret'] + notff3].iloc[train_index], regdata[list_of_responses + ['ret'] + notff3].iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
     # Step2: Fit standardizer to train sets
-    scalefitwof    = scaler.fit(Xwof_train)
-    scalefitwf     = scaler2.fit(Xwf_train)
+    scalefitwof    = scaler.fit(Xwof_train) # Standardize to fit train set WITHOUT FEATURE LAGS
+    scalefitwf     = scaler2.fit(Xwf_train)  # Standardize to fit train set WITH FEATURE LAGS
     # Step3: Standardize train AND test sets WITHOUT FEATURES nor their lags
     Xwof_train     = pd.DataFrame(scalefitwof.transform(Xwof_train), columns=Xwof_train.columns,index=Xwof_train.index)
     Xwof_test      = pd.DataFrame(scalefitwof.transform(Xwof_test), columns=Xwof_test.columns,index=Xwof_test.index)
@@ -72,80 +72,132 @@ for i in range(trainmin,trainmax):
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
 ##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
-        # Set GridSearchCV 
+    for resp in list_of_responses:
+        ## Model Selection
+        modelselectWORFR  = [1]
+        modelselectWRFR   = [1]
+        # Define lagged X w.r.t AIC
+        Xwof_train_L    = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
+                                                    maxlag0=modelselectWORFR[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwof_train[[resp] + ['ret']].index[:modelselectWORFR[-1]],
+                                                                                    columns=Xwof_train[[resp] + ['ret']].columns[0])
+        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_train[[resp] + ['ret'] + notff3],
+                                                    maxlag0=modelselectWRFR[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_train[[resp] + ['ret'] + notff3].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_train[[resp] + ['ret'] + notff3].columns[0])
+        Xwof_test_L    = sm.tsa.tsatools.lagmat2ds(Xwof_test[[resp] + ['ret']],
+                                                    maxlag0=modelselectWORFR[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwof_test[[resp] + ['ret']].index[:modelselectWORFR[-1]],
+                                                                                    columns=Xwof_test[[resp] + ['ret']].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_test[[resp] + ['ret'] + notff3],
+                                                    maxlag0=modelselectWRFR[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret'] + notff3].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_test[[resp] + ['ret'] + notff3].columns[0])
+        # Train models
         model   = {'RFRWO': GridSearchCV(RFR, param_grid=random_grid, 
-                                       scoring='neg_mean_squared_error',
-                                       return_train_score=True, cv=tsplit.split(Xwof_train.index),
-                                       iid=True, n_jobs=-1).fit(Xwof_train[respL], y_train2[resp]).best_estimator_,
-                   'RFRW': GridSearchCV(RFR, param_grid=random_grid, scoring='neg_mean_squared_error',
-                                        return_train_score=True, cv=tsplit.split(Xwf_train.index),
-                                        iid=True, n_jobs=-1).fit(Xwf_train[[respL] + notff3], y_train2[resp]).best_estimator_}
+                                       scoring='neg_mean_squared_error', 
+                                       cv=tsplit.split(Xwof_train_L.index),
+                                       iid=True, n_jobs=-1).fit(Xwof_train_L, 
+                                                                y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]).best_estimator_,
+                   'RFRW': GridSearchCV(RFR, param_grid=random_grid, 
+                                        scoring='neg_mean_squared_error',
+                                        cv=tsplit.split(Xwf_train_L.index),
+                                        iid=True, n_jobs=-1).fit(Xwf_train_L, 
+                                                                 y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_}
         ## Random Forest Regression
-        forest_regWO.append(model['RFRWO'])
-        ypredforestWO.append(forest_regWO[len(forest_regWO)-1].predict(Xwof_test[respL]))
-        axRFRWO.append(np.array([y_test2[resp], ypredforestWO[len(forest_regWO)-1]]).T)
-        forest_regW.append(model['RFRW'])
-        ypredforestW.append(forest_regW[len(forest_regW)-1].predict(Xwf_test[[respL] + notff3]))
-        axRFRW.append(np.array([y_test2[resp], ypredforestW[len(forest_regW)-1]]).T)
-        ## Random Forest Classification
-        #forest_clas.append(model['RFRW'])
-        #ypredforestclas.append(forest_clas[len(forest_clas)-1].predict(Xwf_test))
-        #axRFC.append(np.array([y_test1[resp], ypredforestclas[len(forest_clas)-1]]).T)
+        forest_regWO.append(model['RFRWO'].fit(Xwof_train_L, 
+                            y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]))
+        ypredforestWO.append(forest_regWO[len(forest_regWO)-1].predict(Xwof_test_L))
+        axRFRWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)], 
+                                 ypredforestWO[len(forest_regWO)-1]]).T)
+        forest_regW.append(model['RFRW'].fit(Xwf_train_L, 
+                            y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ypredforestW.append(forest_regW[len(forest_regW)-1].predict(Xwf_test_L))
+        axRFRW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                ypredforestW[len(forest_regW)-1]]).T)
+        ## Performances
+        ## Compare train set performance
+        trainscore_forestWO.append(model['RFRWO'].score(Xwof_train_L, 
+                                                        y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]))
+        trainscore_forestW.append(model['RFRW'].score(Xwf_train_L, 
+                                                      y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ## Compare test set performance
+        testscore_forestWO.append(model['RFRWO'].score(Xwof_test_L, 
+                                                       y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)]))
+        testscore_forestW.append(model['RFRW'].score(Xwf_test_L, 
+                                                     y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
 t1 = timer()
 print(t1-t0)
-#
-cols            = int(np.size(axRFRWO)/(trainmax-trainmin))
-# Restructure predictions so that all of them are in one matrix. 
+# =============================================================================
+## Alternative scoring on test set: AIC
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-ypredforestWO   = np.array(axRFRWO).squeeze().reshape(trainmax-trainmin,cols)
-ypredforestW    = np.array(axRFRW).squeeze().reshape(trainmax-trainmin,cols)
-forestresultsWO = []
-axRFRWO         = []
-forestresultsW  = []
-axRFRW          = []
-for i in range(0,ypredforestWO.shape[1]-1,2):
-    forestresultsWO.append(r2_score(ypredforestWO[1:,i],ypredforestWO[:-1,i+1]))
-    axRFRWO.append(np.array([ypredforestWO[:,i],ypredforestWO[:,i+1]]).T)
-    forestresultsW.append(r2_score(ypredforestW[1:,i],ypredforestW[:-1,i+1]))
-    axRFRW.append(np.array([ypredforestW[:,i],ypredforestW[:,i+1]]).T)
-#
-FI              = []
-FII = pd.DataFrame()
+RFRresultsWO = []
+RFRresidWO   = []
+RFRresultsW  = []
+RFRresidW    = []
+# Get the results
+for i in range(0,len(axRFRWO)):
+    RFRresultsWO.append(aic(axRFRWO[i][:,0],axRFRWO[i][:,1], forest_regWO[i].n_features_))
+    RFRresidWO.append(axRFRWO[i][:,0] - axRFRWO[i][:,1])  
+    RFRresultsW.append(aic(axRFRW[i][:,0],axRFRW[i][:,1],forest_regW[i].n_features_))
+    RFRresidW.append(axRFRW[i][:,0] - axRFRW[i][:,1]) 
+# =============================================================================
+### Mean performance of each feature
+RFRresultsWO = pd.DataFrame(np.split(np.array(RFRresultsWO), 6), index=list_of_responses)
+print('Mean AIC without features = ', RFRresultsWO.mean(axis=1))
+RFRresultsW  = pd.DataFrame(np.split(np.array(RFRresultsW), 6), index=list_of_responses)
+print('Mean AIC with features = ', RFRresultsW.mean(axis=1))
+# =============================================================================
+FIWO = pd.DataFrame()
+FIW = pd.DataFrame()
 for i in range(len(forest_regW)):
-    for respL in responsesL:
-        FI.append(pd.DataFrame(forest_regW[i].feature_importances_, index = Xwf_train[[respL] + notff3].columns, columns=['Feature Importance']))
-        FII[i] = forest_regW[i].feature_importances_
-        FII.index = Xwf_train[[respL] + notff3].columns
-#
-FII.mean(axis = 1)
-print('Mean of feature importance = ', FII.mean(axis = 1))
-#
+    FIWO[i] = forest_regWO[i].feature_importances_
+    FIWO.index = Xwof_train_L.columns
+    FIW[i] = forest_regW[i].feature_importances_
+    FIW.index = Xwf_train_L.columns
+FIWO.columns = list_of_responses*5
+FIW.columns = list_of_responses*5
+print('Mean of feature importance without features = ', FIWO.mean(axis = 1))
+print('Mean of feature importance with features= ', FIW.mean(axis = 1))
+# =============================================================================
 """   
-plt.barh(range(forest_regWPCA[48].n_features_), FIPCA[49], align='center')
-plt.yticks(np.arange(forest_regW[48].n_features_), notff3)
+plt.barh(range(len(FIWO.columns)), FIWO.values[0], align='edge')
+plt.barh(range(len(FIWO.columns)), FIWO.values[1], align='edge')
+plt.legend(FIWO.index)
 plt.xlabel('Feature Importance')
-plt.ylabel('Feature')
+plt.ylabel('Regression')
 plt.show()
 """
-#
+"""  
+for i in range(len(FIW.index)):
+    plt.barh(range(len(FIW.columns)), FIW.values[i], align='edge')
+    plt.legend(FIW.index)
+plt.xlabel('Feature Importance')
+plt.ylabel('Regression')
+plt.show()
+"""
 #%% Random Forest with PCs ###################################################
 #
 forest_regWPCA      = []
 axRFRWPCA           = []
 ypredforestWPCA     = []
+#
+trainscore_forestWPCA  = []
+testscore_forestWPCA   = []
+#
+modelselectWRFR   = []
+#
 t0 = timer()
-for i in range(trainmin,trainmax):
+for train_index,test_index in tsplit.split(regdata.index):
     #print(train_index,test_index)
 ######## Data Splitting and Scaling ##########################################
     # Step1: Split time series into train and test sets
-    Xwof_train, Xwof_test = regdata[responsesL].iloc[i-trainmin:i], regdata[responsesL].iloc[i:i+1]
+    Xwof_train, Xwof_test = regdata[list_of_responses + ['ret']].iloc[train_index], regdata[list_of_responses + ['ret']].iloc[test_index]
     #                              !-------------------! Here we include everything but y_t
-    Xwf_train, Xwf_test   = regdata[notff3].iloc[i-trainmin:i], regdata[notff3].iloc[i:i+1]
+    Xwf_train, Xwf_test   = regdata.iloc[train_index], regdata.iloc[test_index]
     #
-    y_train1, y_test1     = regdata2[list_of_responses].iloc[i-trainmin:i], regdata2[list_of_responses].iloc[i:i+1]
-    y_train2, y_test2     = regdata[list_of_responses].iloc[i-trainmin:i], regdata[list_of_responses].iloc[i:i+1]
-    # Step2: Fit standardizer to train set
+    y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]    # Step2: Fit standardizer to train set
     scalefitwf     = scaler2.fit(Xwf_train)
     # Step3: Standardize train AND test sets WITHOUT FEATURES and their lags
     Xwf_train     = pd.DataFrame(scalefitwf.transform(Xwf_train), 
@@ -172,43 +224,59 @@ for i in range(trainmin,trainmax):
     Xwf_trainPCA = pd.concat([Xwof_train,Xwf_trainPCA], axis=1)
     Xwf_testPCA  = pd.concat([Xwof_test,Xwf_testPCA], axis=1)
 ##############################################################################
-    for resp, respL in zip(list_of_responses, responsesL):
-        # Set GridSearchCV 
-        model   = {'RFRWPCA': GridSearchCV(RFR, param_grid=random_grid, scoring='neg_mean_squared_error',
-                                           return_train_score=True, cv=tsplit.split(Xwf_trainPCA.index),
-                                           iid=True, n_jobs=-1).fit(Xwf_trainPCA[[respL] + pclist], y_train2[resp]).best_estimator_}
+    for resp in list_of_responses:
+        ## Model Selection
+        modelselectWRFR   = [1]
+        # Define lagged X w.r.t AIC
+        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_train[[resp] + ['ret'] + notff3],
+                                                    maxlag0=modelselectWRFR[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_train[[resp] + ['ret'] + notff3].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_train[[resp] + ['ret'] + notff3].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_test[[resp] + ['ret'] + notff3],
+                                                    maxlag0=modelselectWRFR[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_test[[resp] + ['ret'] + notff3].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_test[[resp] + ['ret'] + notff3].columns[0])
+        # Train models
+        model   = { \
+                   'RFRWPCA': GridSearchCV(RFR, param_grid=random_grid, 
+                                        scoring='neg_mean_squared_error',
+                                        cv=tsplit.split(Xwf_train_L.index),
+                                        iid=True, n_jobs=-1).fit(Xwf_train_L, 
+                                                                 y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_}
         ## Random Forest Regression
-        forest_regWPCA.append(model['RFRWPCA'])
-        ypredforestWPCA.append(forest_regWPCA[len(forest_regWPCA)-1].predict(Xwf_testPCA[[respL] + pclist]))
-        axRFRWPCA.append(np.array([y_test2[resp], ypredforestWPCA[len(forest_regWPCA)-1]]).T)
-        ## Random Forest Classification
-        #forest_clas.append(model['RFRW'])
-        #ypredforestclas.append(forest_clas[len(forest_clas)-1].predict(Xwf_test))
-        #axRFC.append(np.array([y_test1[resp], ypredforestclas[len(forest_clas)-1]]).T)
+        forest_regWPCA.append(model['RFRWPCA'].fit(Xwf_train_L, 
+                            y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ypredforestWPCA.append(forest_regWPCA[-1].predict(Xwf_test_L))
+        axRFRWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                ypredforestWPCA[-1]]).T)
+        ## Performances
+        ## Compare train set performance
+        trainscore_forestWPCA.append(model['RFRWPCA'].score(Xwf_train_L, 
+                                                      y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ## Compare test set performance
+        testscore_forestWPCA.append(model['RFRWPCA'].score(Xwf_test_L, 
+                                                     y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
 t1 = timer()
 print(t1-t0)
-#
-cols                = int(np.size(axRFRWPCA)/(trainmax-trainmin))
-# Restructure predictions so that all of them are in one matrix. 
+# =============================================================================
+## Alternative scoring on test set: AIC
+# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-ypredforestWPCA     = np.array(axRFRWPCA).squeeze().reshape(trainmax-trainmin,cols)
-forestresultsWPCA   = []
-axRFRWPCA           = []
-for i in range(0,ypredforestWPCA.shape[1]-1,2):
-    forestresultsWPCA.append(r2_score(ypredforestWPCA[1:,i],ypredforestWPCA[:-1,i+1]))
-    axRFRWPCA.append(np.array([ypredforestWPCA[1:,i],ypredforestWPCA[:-1,i+1]]).T)
-#
-FIPCA           = []
-idxx            = []
-idxl            = []
-meanFIPCA       = []
-FIPCAdf         = pd.DataFrame()
+RFRresultsWPCA  = []
+RFRresidWPCA    = []
+# Get the results
+for i in range(0,len(axRFRWPCA)):
+    RFRresultsWPCA.append(aic(axRFRWPCA[i][:,0],axRFRWPCA[i][:,1],forest_regWPCA[i].n_features_))
+    RFRresidWPCA.append(axRFRWPCA[i][:,0] - axRFRWPCA[i][:,1]) 
+# =============================================================================
+### Mean performance of each feature
+RFRresultsWPCA  = pd.DataFrame(np.split(np.array(RFRresultsWPCA), 6), index=list_of_responses)
+print('Mean AIC with PC lag = ', RFRresultsWPCA.mean(axis=1))
+# =============================================================================
+FIWPCA = pd.DataFrame()
 for i in range(len(forest_regWPCA)):
-    for respL in responsesL:
-        FIIPCA = np.array(forest_regWPCA[i].feature_importances_)
-        idxx.append(np.arange(len(FIIPCA)-2))
-        idxl.append([[respL] + [respL] + ['PC' + str(idxx[-1][x]+1) for x in range(len(idxx[-1]))]])
-        FIPCA.append(pd.DataFrame(FIIPCA,index=idxl[-1], columns=['Feature Importance']))
-#
-print('Mean of feature importance (with PCs) = ', FIIPCA.mean(axis = 1))
-###############################################################################
+    FIWPCA[i] = forest_regWPCA[i].feature_importances_
+    FIWPCA.index = Xwf_train_L.columns
+FIWPCA.columns = list_of_responses*5
+print('Mean of feature importance with features= ', FIWPCA.mean(axis = 1))
+# =============================================================================

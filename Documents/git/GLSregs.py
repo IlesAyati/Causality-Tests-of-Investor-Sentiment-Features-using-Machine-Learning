@@ -4,7 +4,10 @@ Created on Fri Sep 20 00:15:09 2019
 
 @author: yeeya
 """
-
+import statsmodels.api as sm
+import numpy as np
+import pandas as pd
+from scipy.linalg import toeplitz
 # %% GLS REGRESSIONS ##########################################################
 
 ######  Define regdata - The regression dataset ##############################
@@ -61,19 +64,26 @@ params1na   = []
 for i in notff3:
     tvals1na.append(tvals1copy[i].dropna().values)
     params1na.append(params1copy[i].dropna().values)
-tvals1na  = pd.DataFrame(tvals1na, index=notff3).T
-params1na = pd.DataFrame(params1na, index=notff3).T
-
+tvals1na  = pd.DataFrame(tvals1na, index=notff3).T.round(4)
+params1na = pd.DataFrame(params1na, index=notff3).T.round(4)
+# creating masks to add indication for significance of the coefficients
+r1 = params1na.applymap(lambda x: '{}*'.format(x))
+r2 = params1na.applymap(lambda x: '{}**'.format(x))
+r3 = params1na.applymap(lambda x: '{}***'.format(x))
+# Apply where appropriate
+params1na = params1na.mask(np.abs(tvals1na.values)>1.645,r1)
+params1na = params1na.mask(np.abs(tvals1na.values)>1.96,r2)
+params1na = params1na.mask(np.abs(tvals1na.values)>2.326,r3)
+#%% Regression routine 2 #####################################################
 ######  Define regdata - The regression dataset with PCs #####################
 Pdata2            = pd.DataFrame(Pdata[1::])
 Pdata2.index      = Pdata.index[1:]
 list_of_responses = ["SMALLLoBM", "ME1BM2", "SMALLHiBM", "BIGLoBM", "ME2BM2", "BIGHiBM"]
 Pdata2.columns    = list_of_responses
 regdataPC           = pd.concat([Pdata2,dfallPC],axis=1,ignore_index=False)
-regdataPC.columns   = np.append(list_of_responses,dfall.columns.values)
-#############################################################################
-
-#### Regression 2
+regdataPC.columns   = np.append(list_of_responses,dfallPC.columns.values)
+##############################################################################
+# PC regression
 # One regression per stock portfolio
 reg2         = []
 tvals2       = []
@@ -85,11 +95,11 @@ acorr2ols    = []
 nbyn         = np.arange(len(regdataPC),dtype=np.int32)
 order        = np.array(toeplitz(nbyn),dtype=np.int32)
 for resp in list_of_responses:
-    formula = resp + " ~ NONPNL + CPNL + NCPNL + OI"
+    formula = resp + " ~ comp_0 + comp_1 + comp_2"
     reg2.append(sm.OLS.from_formula(formula, data=regdataPC).fit())
     resid2.append(reg2[len(reg2)-1].resid)
     white2ols.append(sm.stats.diagnostic.het_breuschpagan(resid2[len(reg2)-1], 
-                                                          sm.add_constant(regdataPC[['NONPNL','CPNL','NCPNL', 'OI']])))
+                                                          sm.add_constant(regdataPC[['comp_0', 'comp_1', 'comp_2']])))
     acorr2ols.append(sm.stats.diagnostic.acorr_breusch_godfrey(reg2[len(reg2)-1]))
     res_fit     = sm.OLS(resid2[len(reg2)-1].values[1:], resid2[len(reg2)-1].values[:-1]).fit()
     rho         = res_fit.params
@@ -100,14 +110,24 @@ for resp in list_of_responses:
     resid2.append(reg2[len(reg2)-1].resid)
     params2.append(reg2[len(reg2)-1].params)
     tvals2.append(reg2[len(reg2)-1].tvalues)
-    rsquared2.append(reg2[len(reg2)-1].rsquared)
+    rsquared2.append(reg2[len(reg2)-1].rsquared_adj)
     print(reg2[len(reg2)-1].summary())
     
 tvals2copy = pd.DataFrame(tvals2.copy())
 print('Mean of absolute t-values =', np.abs(tvals2copy).mean(axis=0))
-params2copy = pd.DataFrame(params2.copy())
-
-#### Regression 3
+print('Mean adjusted R-squared =', np.array(rsquared2).mean(axis=0))
+params2copy = pd.DataFrame(params2.copy(), index=list_of_responses).round(4)
+# creating masks to add indication for significance of the coefficients
+r1 = params2copy.applymap(lambda x: '{}*'.format(x))
+r2 = params2copy.applymap(lambda x: '{}**'.format(x))
+r3 = params2copy.applymap(lambda x: '{}***'.format(x))
+# Apply where appropriate
+params2copy = params2copy.mask(np.abs(tvals2copy.values)>1.645,r1)
+params2copy = params2copy.mask(np.abs(tvals2copy.values)>1.96,r2)
+params2copy = params2copy.mask(np.abs(tvals2copy.values)>2.326,r3)
+##############################################################################
+#### Regression 3 ############################################################
+# Features regression
 # One regression per stock portfolio
 reg3      = []
 tvals3    = []
@@ -118,28 +138,37 @@ bp3       = []
 bG3       = []
 bp33      = []
 bG33      = []
-nbyn      = np.arange(len(regdataPC),dtype=np.int32)
+nbyn      = np.arange(len(regdata),dtype=np.int32)
 order     = np.array(toeplitz(nbyn),dtype=np.int32)
 for resp in list_of_responses:
     formula = resp + " ~ cefd + NONPNL + CPNL + NCPNL + OI + vixret "
-    reg3.append(sm.OLS.from_formula(formula, data=regdataPC).fit())
+    reg3.append(sm.OLS.from_formula(formula, data=regdata).fit())
     resid3.append(reg3[len(reg3)-1].resid)
     bp3.append(sm.stats.diagnostic.het_white(resid3[len(reg3)-1], 
-                                                    sm.add_constant(regdataPC[notff3])))
+                                                    sm.add_constant(regdata[notff3])))
     bG3.append(sm.stats.diagnostic.acorr_breusch_godfrey(reg3[len(reg3)-1]))
     res_fit     = sm.OLS(resid3[len(reg3)-1].values[1:], resid3[len(reg3)-1].values[:-1]).fit()
     rho         = res_fit.params
     sigma       = np.array(rho**order,dtype=np.float32)
     reg3.pop()
-    reg3.append(sm.GLS.from_formula(formula, data=regdataPC, sigma=sigma).fit())
+    reg3.append(sm.GLS.from_formula(formula, data=regdata, sigma=sigma).fit())
     resid3.pop()
     resid3.append(reg3[len(reg3)-1].resid)
     params3.append(reg3[len(reg3)-1].params)
     tvals3.append(reg3[len(reg3)-1].tvalues)
-    rsquared3.append(reg3[len(reg3)-1].rsquared)
+    rsquared3.append(reg3[len(reg3)-1].rsquared_adj)
     print(reg3[len(reg3)-1].summary())
     
 tvals3copy = pd.DataFrame(tvals3.copy())
 print('Mean of absolute t-values =', np.abs(tvals3copy).mean(axis=0))
-params3copy = pd.DataFrame(params3.copy())
+print('Mean adjusted R-squared =', np.array(rsquared3).mean(axis=0))
+params3copy = pd.DataFrame(params3.copy(), index=list_of_responses).round(4)
+# creating masks to add indication for significance of the coefficients
+r1 = params3copy.applymap(lambda x: '{}*'.format(x))
+r2 = params3copy.applymap(lambda x: '{}**'.format(x))
+r3 = params3copy.applymap(lambda x: '{}***'.format(x))
+# Apply where appropriate
+params3copy = params3copy.mask(np.abs(tvals3copy.values)>1.645,r1)
+params3copy = params3copy.mask(np.abs(tvals3copy.values)>1.96,r2)
+params3copy = params3copy.mask(np.abs(tvals3copy.values)>2.326,r3)
 ##############################################################################
