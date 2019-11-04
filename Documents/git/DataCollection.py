@@ -94,7 +94,7 @@ ff3             = ['ret', 'smb', 'hml']
 notff3          = ['cefd', 'NONPNL', 'CPNL', 'NCPNL', 'OI', 'vixret']
 adfuller.columns= ff3 + notff3
 dfall.columns   = adfuller.columns
-dfall.index     = Sdata.index[1:]
+dfall.index     = vixdata.index[1:]
 
 # Correlation matrix of features
 dfall[notff3].corr()

@@ -25,7 +25,7 @@ for exog, i, color in zip(notff3,range(len(notff3)), sixcolors):
     dfall[exog].plot(ax=axs[i], color=[color], legend=exog)
     axs[i].legend(loc='lower left')
     axs[i].set(xlabel="")
-#fig.savefig('./Figures/FeaturesSeries.pdf', bbox_inches = 'tight', pad_inches = 0)
+#fig.savefig('C:/Users/yeeya/Figures/FeaturesSeries.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 ##############################################################################
 # %% GLS results ##############################################################
@@ -40,7 +40,7 @@ plt.yticks(ticks=np.arange(0, 35, step=6), labels=list_of_responses)
 reg1plot = plt.gcf()
 reg1plot.set_figwidth(8)
 reg1plot.set_figheight(5)
-#reg1plot.savefig('./Figures/reg1plot.pdf')
+#reg1plot.savefig('C:/Users/yeeya/Figures/reg1plot.pdf')
 plt.show()
 ##############################################################################
 ### Multivariate - COT
@@ -52,7 +52,7 @@ plt.xlabel(r'\textbf{T-stat}', fontsize=10)
 #plt.ylabel(r'\textbf{Regression}', fontsize=10)
 plt.yticks(ticks=range(6), labels=list_of_responses)
 reg2plot = plt.gcf()
-#reg2plot.savefig('./Figures/reg2plot.pdf')
+#reg2plot.savefig('C:/Users/yeeya/Figures/reg2plot.pdf')
 plt.show()
 #
 ### Multivariate - ALL
@@ -63,14 +63,9 @@ plt.title(r'\textbf{T-stats - Multivariate regressions: All features}', fontsize
 plt.xlabel(r'\textbf{T-stat}', fontsize=10)
 plt.yticks(ticks=range(6), labels=list_of_responses)
 reg3plot = plt.gcf()
-#reg3plot.savefig('./Figures/reg3plot.pdf')
+#reg3plot.savefig('C:/Users/yeeya/Figures/reg3plot.pdf')
 plt.show()
 ##############################################################################
-# Scatter plots
-plt.scatter(Pdata2.iloc[:,1],dfallPC.iloc[:,2])
-plt.scatter(Pdata2.iloc[:,1],dfallPC.iloc[:,2])
-plt.scatter(Pdata2.iloc[:,1],dfallPC.iloc[:,2])
-plt.scatter(Pdata2.iloc[:,1],dfallPC.iloc[:,2])
 # %% VAR results ##############################################################
 # Plot conclusion of Granger causality tests
 plt.figure()
@@ -79,20 +74,9 @@ plt.bar(range(0,len(var11yesno)), np.array(var11yesno), alpha=.5, label= 'Resp -
 plt.xticks(ticks=np.arange(0,len(var1yesno),step=6), labels=list_of_responses, fontsize=8)
 plt.xlim(0,len(var1yesno))
 plt.legend()
-plt.grid(b=None,axis='x')
+plt.grid(axis='x')
 ##############################################################################
-# ! PLOTTING MUST BE DONE BEFORE DATAFRAMING THE RESULTS !
-## Plot test AIC results, LinearRegression with and without features/PCs
-plt.bar(np.arange(0,len(linresultsWO),step=1), height=linresultsWO, 
-                  align='edge', alpha=0.5, label='Without Features', zorder=2)
-plt.bar(np.arange(0,len(linresultsW),step=1), height=linresultsW, 
-                  align='edge', alpha=0.5, label='With Features', zorder=2)
-plt.bar(np.arange(0,len(linresultsWPCA),step=1), height=linresultsWPCA, 
-                  align='edge', alpha=0.5, label='With PCs', zorder=2)
-plt.xticks(ticks=np.arange(0,len(linresultsWO),step=6))
-plt.legend()
-plt.grid(b=None,axis='x')
-##############################################################################
+#LinearRegression
 ## Plot some random draws of LinearRegression predictions (orange) vs reality (blue)
 idx = np.arange(0,180,6)
 idx = choice(idx) # Pick random prediction
@@ -107,11 +91,25 @@ for pred in range(6):
     pd.DataFrame(axLinWO[idx]).plot(ax=axs[0], legend='') # Without
     pd.DataFrame(axLinW[idx + pred]).plot(ax=axs[pred+1]) # With feature
     axs[pred+1].legend('',loc='lower left')
-    axs[0].set_xlim([0,len(axLinWO[idx])])
-    axs[pred+1].set_xlim([0,len(axLinWO[idx])])
-fig2.savefig('./Figures/LinRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
+    #axs[0].set_xlim([0,len(axLinWO[idx])])
+    #axs[pred+1].set_xlim([0,len(axLinWO[idx])])
+fig2.savefig('C:/Users/yeeya/Figures/LinRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 
+# AIC plot LinReg
+fig3 = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.bar(range(0,72,2),linresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='OLS: Without Feature')
+plt.bar(range(1,73,2),linresultsW.iloc[:,-1], align='edge', alpha=0.5, label='OLS: With Feature')
+plt.xticks(ticks=np.arange(0,len(linresultsWO)*2,step=12), labels=list_of_responses)
+plt.xlim(0,len(linresultsWO)*2)
+plt.legend()
+plt.grid(axis='x')
+plt.ylabel('AIC')
+fig3.savefig('C:/Users/yeeya/Figures/LinRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+##############################################################################
+# LASSORIDGE
 ## Plot some random draws of Random Forest predictions (orange) vs reality (blue)
 idx = np.arange(0,180,6)
 idx = choice(idx) # Pick random prediction
@@ -128,8 +126,71 @@ for pred in range(6):
     axs[pred+1].legend('',loc='lower left')
     axs[0].set_xlim([0,len(axLinWO[idx])])
     axs[pred+1].set_xlim([0,len(axLinWO[idx])])
-fig2.savefig('./Figures/LinRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig2.savefig('C:/Users/yeeya/Figures/LRRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
+
+# AIC plot Ridge,Lasso regs
+fig3 = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.bar(range(0,144,4),ridgeresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='Ridge: Without Feature')
+plt.bar(range(1,145,4),ridgeresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Ridge: With Feature')
+plt.bar(range(2,146,4),lassoresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='Lasso: Without Feature')
+plt.bar(range(3,147,4),lassoresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Lasso: With Feature')
+plt.xticks(ticks=np.arange(0,len(ridgeresultsWO)*4,step=24), labels=list_of_responses)
+plt.xlim(0,len(ridgeresultsWO)*4)
+plt.legend()
+plt.grid(axis='x')
+plt.ylabel('AIC')
+fig3.savefig('C:/Users/yeeya/Figures/RLRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+
+# AIC with PCs: OLS, Ridge and Lasso
+fig4 = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.bar(range(0,90,3),linresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='OLS PC')
+plt.bar(range(1,91,3),ridgeresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Ridge PC')
+plt.bar(range(2,92,3),lassoresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Lasso PC')
+plt.xticks(ticks=np.arange(0,len(linresultsWPCA)*3,step=15), labels=list_of_responses)
+plt.xlim(0,len(linresultsWPCA)*3)
+plt.legend()
+plt.grid(axis='x')
+plt.ylabel('AIC')
+fig4.savefig('C:/Users/yeeya/Figures/PCRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+
+# MSE plot Forest
+fig5 = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.bar(range(0,18,3),RFRresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='Forest: Without Features')
+plt.bar(range(1,19,3),RFRresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Forest: With Features')
+plt.bar(range(2,20,3),RFRresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Forest: With PCs')
+plt.xticks(ticks=np.arange(0,len(RFRresultsWO)*3,step=3), labels=list_of_responses)
+plt.xlim(0,len(RFRresultsWO)*3)
+plt.legend(loc='lower left')
+plt.grid(axis='x')
+plt.ylabel('Mean Squared Error')
+fig5.savefig('C:/Users/yeeya/Figures/RFRresults.pdf', bbox_inches = 'tight', pad_inches = 0)
+
+# MSE plot Forest
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+fig6, axs6 = plt.subplots(3, sharex=True)
+fig6.set_figheight(8)
+fig6.set_figwidth(7)
+fig6.set_label("")
+FIWOsplit5[ranked1].plot(ax=axs6[0], kind='barh', alpha=0.5, 
+       color= 'red',
+       label='Feature Importances: Without features')
+FIWsplit5[ranked2].plot(ax=axs6[1], kind='barh',  alpha=0.5, 
+       color= 'blue',
+       label='Feature Importances: With features')
+FIWPCAsplit5[ranked3].plot(ax=axs6[2], kind='barh', alpha=0.5, 
+       color= 'purple',
+       label='Feature Importances: PCs')
+fig6.legend(loc='lower left')
+plt.xlabel('Relative Importance')
+fig6.savefig('C:/Users/yeeya/Figures/RFRFI.pdf', bbox_inches = 'tight', pad_inches = 0)
 # %%   TABLES 
 """
 ## Export COT table to latex
