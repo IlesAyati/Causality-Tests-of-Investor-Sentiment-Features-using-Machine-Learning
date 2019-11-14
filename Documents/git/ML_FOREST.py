@@ -1,7 +1,7 @@
 #%% RANDOM FOREST FEATURE SELECTION ###########################################
 
 ## Defining grid for Gridsearch cross validation ##
-n_estimators      = [500]
+n_estimators      = [1000]
 # Server execution uses:
 #[int(x) for x in np.linspace(start = 50, stop = 500, num = 3)]
 
@@ -74,8 +74,9 @@ for train_index,test_index in tsplit.split(regdata.index):
 ##############################################################################
     for resp in list_of_responses:
         ## Model Selection
-        modelselectWORFR  = [1]
-        modelselectWRFR   = [1]
+        # Only 1 lag
+        modelselectWORFR= [1]
+        modelselectWRFR = [1]
         # Define lagged X w.r.t AIC
         Xwof_train_L    = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],\
                                                     maxlag0=modelselectWORFR[-1],trim='forward', \
@@ -96,12 +97,12 @@ for train_index,test_index in tsplit.split(regdata.index):
         # Train models
         model   = {'RFRWO': GridSearchCV(RFR, param_grid=random_grid, \
                                        scoring='neg_mean_squared_error', \
-                                       cv=tsplit2.split(Xwof_train_L.index),\
+                                       cv=tsplit.split(Xwof_train_L.index),\
                                        iid=True, n_jobs=-1).fit(Xwof_train_L, \
                                                                 y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]).best_estimator_,
                    'RFRW': GridSearchCV(RFR, param_grid=random_grid, \
                                         scoring='neg_mean_squared_error',\
-                                        cv=tsplit2.split(Xwf_train_L.index),\
+                                        cv=tsplit.split(Xwf_train_L.index),\
                                         iid=True, n_jobs=-1).fit(Xwf_train_L, 
                                                                  y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_}
         ## Random Forest Regression
@@ -219,7 +220,11 @@ for train_index,test_index in tsplit.split(regdata.index):
 ##############################################################################
     for resp in list_of_responses:
         ## Model Selection
-        modelselectWRFR   = [1]
+        # Pick the same amount of lags as in OLS:
+        # Counts iteration number
+        countiter.append(y_test2.columns) 
+        # Add number of lags corresponding to iteration number from OLS with features
+        modelselectWRFR = [1]
         # Define lagged X w.r.t AIC
         Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist],\
                                                     maxlag0=modelselectWRFR[-1],trim='forward', \

@@ -25,22 +25,32 @@ y_predLinridgeW   = []
 axLinridgeW       = []
 #
 ftestRWO          = []
-ftestRW           = []
 ftestLWO          = []
+ftestRW           = []
 ftestLW           = []
 #
+HetLWO            = []
+HetRWO            = []
+HetLW             = []
+HetRW             = []
+#
+acorrRWO          = []
+acorrLWO          = []
+acorrRW           = []
+acorrLW           = []
+# 
 trainscoreRWO     = []
-trainscoreRW      = []
 trainscoreLWO     = []
+trainscoreRW      = []
 trainscoreLW      = []
 #
 testscoreRWO      = []
-testscoreRW       = []
 testscoreLWO      = []
+testscoreRW       = []
 testscoreLW       = []
 #
-lasso_params      = {'alpha':[0.005, 0.01, 0.02, 0.05]}
-ridge_params      = {'alpha':[0.005, 0.01, 0.02, 0.05],
+lasso_params      = {'alpha':[0.005, 0.01, 0.03, 0.05]}
+ridge_params      = {'alpha':[0.005, 0.01, 0.03, 0.05],
                      'solver': ['svd','lsqr','saga']}
 #
 countiter         = []
@@ -135,6 +145,10 @@ for train_index,test_index in tsplit.split(regdata.index):
             ftestRWO.append([Xwof_test_L.columns.values,f_regression(Xwof_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)])[0]])
             axLinridgeWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)],
                                           y_predLinridgeWO[-1]]).T)
+            ## Heteroscedasticity and autocorrelation tests
+            HetRWO.append(sm.stats.diagnostic.het_white(np.array([axLinridgeWO[-1][:,0] - axLinridgeWO[-1][:,1]]).T, \
+                                                                sm.add_constant(Xwof_test_L.values)))
+            acorrRWO.append(sm.stats.diagnostic.acorr_ljungbox(axLinridgeWO[-1][:,0] - axLinridgeWO[-1][:,1]))
             #
             ridge_regW.append(model['RidgeW'].fit(Xwf_train_L, 
                                                     y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
@@ -143,6 +157,10 @@ for train_index,test_index in tsplit.split(regdata.index):
             ftestRW.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
             axLinridgeW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
                                          y_predLinridgeW[-1]]).T)
+            ## Heteroscedasticity and autocorrelation tests
+            HetRW.append(sm.stats.diagnostic.het_white(np.array([axLinridgeW[-1][:,0] - axLinridgeW[-1][:,1]]).T, \
+                                                                sm.add_constant(Xwf_test_L.values)))
+            acorrRW.append(sm.stats.diagnostic.acorr_ljungbox(axLinridgeW[-1][:,0] - axLinridgeW[-1][:,1]))
             ## LASSO Predictions
             lasso_regWO.append(model['LassoWO'].fit(Xwof_train_L, 
                                                     y_train2[resp].iloc[y_train2.index.isin(Xwof_train_L.index)]))
@@ -151,6 +169,10 @@ for train_index,test_index in tsplit.split(regdata.index):
             ftestLWO.append([Xwof_test_L.columns.values,f_regression(Xwof_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)])[0]])
             axLinlassoWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)], 
                                           y_predLinlassoWO[-1]]).T)
+            ## Heteroscedasticity and autocorrelation tests
+            HetLWO.append(sm.stats.diagnostic.het_white(np.array([axLinlassoWO[-1][:,0] - axLinlassoWO[-1][:,1]]).T, \
+                                                                sm.add_constant(Xwof_test_L.values)))
+            acorrLWO.append(sm.stats.diagnostic.acorr_ljungbox(axLinlassoWO[-1][:,0] - axLinlassoWO[-1][:,1]))
             #
             lasso_regW.append(model['LassoW'].fit(Xwf_train_L, 
                                                     y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
@@ -159,6 +181,10 @@ for train_index,test_index in tsplit.split(regdata.index):
             ftestLW.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
             axLinlassoW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
                                          y_predLinlassoW[-1]]).T)
+            ## Heteroscedasticity and autocorrelation tests
+            HetRWO.append(sm.stats.diagnostic.het_white(np.array([axLinlassoW[-1][:,0] - axLinlassoW[-1][:,1]]).T, \
+                                                                sm.add_constant(Xwf_test_L.values)))
+            acorrRWO.append(sm.stats.diagnostic.acorr_ljungbox(axLinlassoW[-1][:,0] - axLinlassoW[-1][:,1]))
 #           ## Performances
 #           ## Compare train set performance
 #           trainscoreRWO.append(model['RidgeWO'].score(Xwof_train[[respL]], y_train2[resp]))
@@ -176,10 +202,6 @@ print(t1-t0)
 ## Alternative scoring on test set: AIC
 # We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-ridge_coef_WO       = np.array(ridge_coef_WO)
-ridge_coef_W        = np.array(ridge_coef_W)
-lasso_coef_WO       = np.array(lasso_coef_WO)
-lasso_coef_W        = np.array(lasso_coef_W)
 ridgeresultsWO      = []
 ridgeresidWO        = []
 lassoresultsWO      = []
@@ -188,31 +210,30 @@ ridgeresultsW       = []
 ridgeresidW         = []
 lassoresultsW       = []
 lassoresidW         = []
+FtestRidge          = []
+FtestLasso          = []
 # Get the results
 for i in range(0,len(y_predLinridgeW)):
     ridgeresultsWO.append(aic(axLinridgeWO[i][:,0],axLinridgeWO[i][:,1],ridge_coef_WO[i].shape[0]))
     ridgeresidWO.append(axLinridgeWO[i][:,0] - axLinridgeWO[i][:,1])
     ridgeresultsW.append(aic(axLinridgeW[i][:,0],axLinridgeW[i][:,1],ridge_coef_W[i].shape[0]))
     ridgeresidW.append(axLinridgeW[i][:,0] - axLinridgeW[i][:,1])
-    lassoresultsWO.append(aic(axLinlassoWO[i][:,0],axLinlassoWO[i][:,1],lasso_coef_WO[i].shape[0]))
+    lassoresultsWO.append(aic(axLinlassoWO[i][:,0],axLinlassoWO[i][:,1],np.count_nonzero(lasso_coef_WO[i])))
     lassoresidWO.append(axLinlassoWO[i][:,0] - axLinlassoWO[i][:,1])
-    lassoresultsW.append(aic(axLinlassoW[i][:,0],axLinlassoW[i][:,1],lasso_coef_W[i].shape[0]))
+    lassoresultsW.append(aic(axLinlassoW[i][:,0],axLinlassoW[i][:,1],np.count_nonzero(lasso_coef_W[i])))
     lassoresidW.append(axLinlassoW[i][:,0] - axLinlassoW[i][:,1])
-# =============================================================================
-"""
-## Plot train results,
-plt.bar(np.arange(0,len(ridgeresultsWO),step=1), height=ridgeresultsWO, 
-                  align='edge', alpha=0.25, label='Ridge without Features', linewidth=1)
-plt.bar(np.arange(0,len(ridgeresultsW),step=1), height=ridgeresultsW, 
-                  align='edge', alpha=0.25, label='Ridge with Features', linewidth=1)
-plt.bar(np.arange(0,len(lassoresultsWO),step=1), height=lassoresultsWO, 
-                  align='edge', alpha=0.25, label=' Lasso without Features', linewidth=1)
-plt.bar(np.arange(0,len(lassoresultsW),step=1), height=lassoresultsW, 
-                  align='edge', alpha=0.25, label='Lasso with Features', linewidth=1)
-plt.xticks(ticks=np.arange(0,len(lassoresultsWO),step=6))
-plt.legend()
-plt.grid(b=None,axis='x')
-"""
+    FtestRidge.append(F(axLinridgeWO[i][:,0],
+                        axLinridgeWO[i][:,1],
+                        axLinridgeW[i][:,0],
+                        axLinridgeW[i][:,1],
+                        ridge_coef_WO[i].shape[0], 
+                        ridge_coef_W[i].shape[0]))
+    FtestLasso.append(F(axLinlassoWO[i][:,0],
+                        axLinlassoWO[i][:,1],
+                        axLinlassoW[i][:,0],
+                        axLinlassoW[i][:,1],
+                        lasso_coef_WO[i].shape[0], 
+                        lasso_coef_W[i].shape[0]))
 # =============================================================================
 ### Mean performance of each feature 
 ridgeresultsWO = pd.DataFrame(np.split(np.array(ridgeresultsWO), 5),  
@@ -232,12 +253,27 @@ lassoresultsW  = pd.DataFrame(np.split(np.array(lassoresultsW), 5),
                             index=['Split' + str(i+1) for i in range(5)]).T
 print('LASSOW: Mean AIC with feature = ', lassoresultsW.mean(axis=1))
 # =============================================================================
-### F-tests in concetenated dataframe
-ftestLWO      = pd.concat([pd.DataFrame(zip(ftestLWO[i][0],ftestLWO[i][1])) for i in range(len(ftestLWO))],axis=1)
-ftestLW       = pd.concat([pd.DataFrame(zip(ftestLW[i][0],ftestLW[i][1])) for i in range(len(ftestLW))],axis=1)
-ftestRWO      = pd.concat([pd.DataFrame(zip(ftestRWO[i][0],ftestRWO[i][1])) for i in range(len(ftestRWO))],axis=1)
-ftestRW       = pd.concat([pd.DataFrame(zip(ftestRW[i][0],ftestRW[i][1])) for i in range(len(ftestRW))],axis=1)
+# Normally distributed residuals ?
+NormresidRWO  = [normaltest(ridgeresidWO[i], axis=0, nan_policy='omit') for i in range(len(ridgeresidWO))]
+NormresidLWO  = [normaltest(ridgeresidW[i], axis=0, nan_policy='omit') for i in range(len(ridgeresidW))]
+NormresidRW   = [normaltest(lassoresidWO[i], axis=0, nan_policy='omit') for i in range(len(lassoresidWO))]
+NormresidLW   = [normaltest(lassoresidW[i], axis=0, nan_policy='omit') for i in range(len(lassoresidW))]
+# Count number of regressions with non-normal residuals
+NormPropRWO   = np.count_nonzero([NormresidRWO[i][1] < 0.05 for i in range(len(NormresidRWO))])
+NormPropLWO   = np.count_nonzero([NormresidLWO[i][1] < 0.05 for i in range(len(NormresidLWO))])
+NormPropRW    = np.count_nonzero([NormresidRW[i][1] < 0.05 for i in range(len(NormresidRW))])
+NormPropLW    = np.count_nonzero([NormresidLW[i][1] < 0.05 for i in range(len(NormresidLW))])
 # =============================================================================
+# Count number of regressions with heteroscedastic residuals (5%)
+HetPropRWO    = np.count_nonzero(np.array([HetRWO[i][1] for i in range(len(HetRWO))]) < 0.05)
+HetPropLWO    = np.count_nonzero(np.array([HetLWO[i][1] for i in range(len(HetLWO))]) < 0.05)
+HetPropRW     = np.count_nonzero(np.array([HetRW[i][1] for i in range(len(HetRW))]) < 0.05)
+HetPropLW     = np.count_nonzero(np.array([HetLW[i][1] for i in range(len(HetLW))]) < 0.05)
+# Coefficients 
+ridge_regcoefWdf  = pd.concat([pd.DataFrame(zip(ftestLW[i][0],ridge_coef_W[i])) for i in range(len(ftestLW))],axis=1)
+lasso_regcoefWdf  = pd.concat([pd.DataFrame(zip(ftestRW[i][0],lasso_coef_W[i])) for i in range(len(ftestRW))],axis=1)
+# =============================================================================
+
 #%% RIDGE AND LASSO REGRESSIONS WITH PCS #####################################
 #
 #
@@ -254,6 +290,12 @@ axLinridgeWPCA      = []
 #
 ftestLWPCA          = []
 ftestRWPCA          = []
+#
+HetLWPCA            = []
+HetRWPCA            = []
+#
+acorrLWPCA          = []
+acorrRWPCA          = []
 #
 trainscoreRWPCA     = []
 trainscoreLWPCA     = []
@@ -301,71 +343,75 @@ for train_index,test_index in tsplit.split(regdata.index):
     Xwf_testPCA  = pd.concat([Xwof_test,Xwf_testPCA], axis=1)
 ##############################################################################
     for resp in list_of_responses:
-        for pc in pclist[-1]:
-            ## Model Selection
-            # Only one lag
-            modelselectWPCA  = [1]
-            # Define lagged X then trim the initial observations (with no input)
-            Xwf_train_L    = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + [pc]],
-                                                        maxlag0=modelselectWPCA[-1],trim='forward', 
-                                                        dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + [pc]].index[:modelselectWPCA[-1]],
-                                                                                        columns=Xwf_trainPCA[[resp] + ['ret'] + [pc]].columns[0])
-            Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + [pc]],
-                                                        maxlag0=np.max([1,modelselectWPCA[-1]]),trim='forward', 
-                                                        dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + [pc]].index[:modelselectWPCA[-1]],
-                                                                                        columns=Xwf_testPCA[[resp] + ['ret'] + [pc]].columns[0])
-            ## Train model
-                        # Train models
-            model        = {'LassoW':  GridSearchCV(Lasso(fit_intercept=False, normalize=False, 
-                                                          random_state=42, selection='random', 
-                                                          max_iter=3000), 
-                                          param_grid=lasso_params, 
-                                          scoring='neg_mean_squared_error', 
-                                          return_train_score=True, 
-                                          cv=tsplit.split(Xwf_train_L.index), iid=True).fit(Xwf_train_L, y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_,
-                            'RidgeW':  GridSearchCV(Ridge(fit_intercept=False, normalize=False, 
-                                                          random_state=42, 
-                                                          max_iter=3000), 
-                                          param_grid=ridge_params, 
-                                          scoring='neg_mean_squared_error', 
-                                          return_train_score=True, 
-                                          cv=tsplit.split(Xwf_train_L.index), iid=True).fit(Xwf_train_L, 
-                                                                                            y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_}            
-            ## RIDGE Predictions
-            ridge_regWPCA.append(model['RidgeW'].fit(Xwf_train_L, \
-                                                    y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
-            ridge_coef_WPCA.append(ridge_regWPCA[-1].coef_)
-            y_predLinridgeWPCA.append(ridge_regWPCA[-1].predict(Xwf_test_L))
-            ftestRWPCA.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
-            axLinridgeWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
-                                           y_predLinridgeWPCA[-1]]).T)
-            ## LASSO Predictions
-            lasso_regWPCA.append(model['LassoW'].fit(Xwf_train_L, \
-                                                    y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
-            lasso_coef_WPCA.append(lasso_regWPCA[-1].coef_)
-            y_predLinlassoWPCA.append(lasso_regWPCA[-1].predict(Xwf_test_L))
-            ftestLWPCA.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
-            axLinlassoWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
-                                           y_predLinlassoWPCA[-1]]).T)
-            ## Performances - R squared - Inaccurate due to violated assumptions
-            ## Compare train set performance
-            trainscoreRWPCA.append(model['RidgeW'].score(Xwf_train_L, \
-                                                      y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
-            trainscoreLWPCA.append(model['LassoW'].score(Xwf_train_L, \
-                                                      y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
-            ## Compare test set performance
-            testscoreRWPCA.append(model['RidgeW'].score(Xwf_test_L, \
-                                                     y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
-            testscoreLWPCA.append(model['LassoW'].score(Xwf_test_L, \
-                                                     y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
+        ## Model Selection
+        modelselectWPCA  = [1]
+        # Define lagged X then trim the initial observations (with no input)
+        Xwf_train_L    = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]],
+                                                    maxlag0=modelselectWPCA[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWPCA[-1]],
+                                                                                    columns=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + pclist[-1]],
+                                                    maxlag0=np.max([1,modelselectWPCA[-1]]),trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWPCA[-1]],
+                                                                                    columns=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
+        ## Train model
+                    # Train models
+        model        = {'LassoW':  GridSearchCV(Lasso(fit_intercept=False, normalize=False, 
+                                                      random_state=42, selection='random', 
+                                                      max_iter=3000), 
+                                      param_grid=lasso_params, 
+                                      scoring='neg_mean_squared_error', 
+                                      return_train_score=True, 
+                                      cv=tsplit.split(Xwf_train_L.index), iid=True).fit(Xwf_train_L, y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_,
+                        'RidgeW':  GridSearchCV(Ridge(fit_intercept=False, normalize=False, 
+                                                      random_state=42, 
+                                                      max_iter=3000), 
+                                      param_grid=ridge_params, 
+                                      scoring='neg_mean_squared_error', 
+                                      return_train_score=True, 
+                                      cv=tsplit.split(Xwf_train_L.index), iid=True).fit(Xwf_train_L, 
+                                                                                        y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]).best_estimator_}            
+        ## RIDGE Predictions
+        ridge_regWPCA.append(model['RidgeW'].fit(Xwf_train_L, \
+                                                y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ridge_coef_WPCA.append(ridge_regWPCA[-1].coef_)
+        y_predLinridgeWPCA.append(ridge_regWPCA[-1].predict(Xwf_test_L))
+        ftestRWPCA.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
+        axLinridgeWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                       y_predLinridgeWPCA[-1]]).T)
+        ## Heteroscedasticity and autocorrelation tests
+        HetRWPCA.append(sm.stats.diagnostic.het_white(np.array([axLinridgeWPCA[-1][:,0] - axLinridgeWPCA[-1][:,1]]).T, \
+                                                            sm.add_constant(Xwf_test_L.values)))
+        acorrRWPCA.append(sm.stats.diagnostic.acorr_ljungbox(axLinridgeWPCA[-1][:,0] - axLinridgeWPCA[-1][:,1]))
+        ## LASSO Predictions
+        lasso_regWPCA.append(model['LassoW'].fit(Xwf_train_L, \
+                                                y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        lasso_coef_WPCA.append(lasso_regWPCA[-1].coef_)
+        y_predLinlassoWPCA.append(lasso_regWPCA[-1].predict(Xwf_test_L))
+        ftestLWPCA.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
+        axLinlassoWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], 
+                                       y_predLinlassoWPCA[-1]]).T)
+        ## Heteroscedasticity and autocorrelation tests
+        HetLWPCA.append(sm.stats.diagnostic.het_white(np.array([axLinlassoWPCA[-1][:,0] - axLinlassoWPCA[-1][:,1]]).T, \
+                                                            sm.add_constant(Xwf_test_L.values)))
+        acorrLWPCA.append(sm.stats.diagnostic.acorr_ljungbox(axLinlassoWPCA[-1][:,0] - axLinlassoWPCA[-1][:,1]))
+        ## Performances - R squared - Inaccurate due to violated assumptions
+        ## Compare train set performance
+        trainscoreRWPCA.append(model['RidgeW'].score(Xwf_train_L, \
+                                                  y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        trainscoreLWPCA.append(model['LassoW'].score(Xwf_train_L, \
+                                                  y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ## Compare test set performance
+        testscoreRWPCA.append(model['RidgeW'].score(Xwf_test_L, \
+                                                 y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
+        testscoreLWPCA.append(model['LassoW'].score(Xwf_test_L, \
+                                                 y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
 t1 = timer()
 print(t1-t0)
 # =============================================================================
 ## Alternative scoring on test set: AIC
-# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
-# Each columns alternates between true y_test and predicted y_test
-ridge_coef_WPCA        = np.array(ridge_coef_WPCA)
-lasso_coef_WPCA        = np.array(lasso_coef_WPCA)
+# ax**** are in (y_true, y_prediction) pairs. 
+# =============================================================================
 ridgeresultsWPCA       = []
 ridgeresidWPCA         = []
 lassoresultsWPCA       = []
@@ -374,31 +420,30 @@ lassoresidWPCA         = []
 for i in range(0,len(y_predLinridgeWPCA)):
     ridgeresultsWPCA.append(aic(axLinridgeWPCA[i][:,0],axLinridgeWPCA[i][:,1],ridge_coef_WPCA[i].shape[0]))
     ridgeresidWPCA.append(axLinridgeWPCA[i][:,0] - axLinridgeWPCA[i][:,1])
-    lassoresultsWPCA.append(aic(axLinlassoWPCA[i][:,0],axLinlassoWPCA[i][:,1],lasso_coef_WPCA[i].shape[0]))
+    lassoresultsWPCA.append(aic(axLinlassoWPCA[i][:,0],axLinlassoWPCA[i][:,1],np.count_nonzero(lasso_coef_WPCA[i])))
     lassoresidWPCA.append(axLinlassoWPCA[i][:,0] - axLinlassoWPCA[i][:,1])
-# =============================================================================
-"""
-## Plot train results,
-plt.bar(np.arange(0,len(ridgeresultsWPCA),step=1), height=ridgeresultsWPCA, 
-                  align='edge', alpha=0.5, label='Ridge with PCs', linewidth=1)
-plt.bar(np.arange(0,len(lassoresultsWPCA),step=1), height=lassoresultsWPCA, 
-                  align='edge', alpha=0.5, label='Lasso with PCs', linewidth=1)
-plt.xticks(ticks=np.arange(0,len(lassoresultsWPCA),step=6))
-plt.legend()
-plt.grid(b=None,axis='x')
-"""
 # =============================================================================
 ### Mean performance of each feature
 ridgeresultsWPCA  = pd.DataFrame(np.split(np.array(ridgeresultsWPCA), 5), 
-                               columns=[np.array(notff3).repeat(5)[i] + '_PC' + str(i+1) for i in range(30)], 
+                               columns=[np.array(list_of_responses)[i] + '_PCs' + str(i+1) for i in range(6)], 
                                index=['Split' + str(i+1) for i in range(5)]).T
 print('RIDGEWPCA: Mean AIC with feature = ', ridgeresultsWPCA.mean(axis=1))
 lassoresultsWPCA  = pd.DataFrame(np.split(np.array(lassoresultsWPCA), 5), 
-                               columns=[np.array(notff3).repeat(5)[i] + '_PC' + str(i+1) for i in range(30)], 
+                               columns=[np.array(list_of_responses)[i] + '_PCs' + str(i+1) for i in range(6)], 
                                index=['Split' + str(i+1) for i in range(5)]).T
 print('LASSOWPCA: Mean AIC with feature = ', lassoresultsWPCA.mean(axis=1))
 # =============================================================================
-### F-tests in concetenated dataframe
-ftestLWPCA   = pd.concat([pd.DataFrame(zip(ftestLWPCA[i][0],ftestLWPCA[i][1])) for i in range(len(ftestLWPCA))],axis=1)
-ftestRWPCA   = pd.concat([pd.DataFrame(zip(ftestRWPCA[i][0],ftestRWPCA[i][1])) for i in range(len(ftestRWPCA))],axis=1)
+# Normally distributed residuals ? 
+NormresidRWPCA   = [normaltest(ridgeresidWPCA[i], axis=0, nan_policy='omit') for i in range(len(ridgeresidWPCA))]
+NormresidLWPCA   = [normaltest(lassoresidWPCA[i], axis=0, nan_policy='omit') for i in range(len(lassoresidWPCA))]
+# Count number of regressions with non-normal residuals
+NormPropRWPCA    = np.count_nonzero([NormresidRWPCA[i][1] < 0.05 for i in range(len(NormresidRWPCA))])
+NormPropLWPCA    = np.count_nonzero([NormresidLWPCA[i][1] < 0.05 for i in range(len(NormresidLWPCA))])
 # =============================================================================
+# Count number of regressions with heteroscedastic residuals (5%)
+HetPropRWPCA   = np.count_nonzero(np.array([HetRWPCA[i][1] for i in range(len(HetRWPCA))]) < 0.05)
+HetPropLWPCA   = np.count_nonzero(np.array([HetLWPCA[i][1] for i in range(len(HetLWPCA))]) < 0.05)
+# =============================================================================
+# Coefficients 
+ridge_regcoefWPCAdf  = pd.concat([pd.DataFrame(zip(ftestRWPCA[i][0],ridge_coef_WPCA[i])) for i in range(len(ftestRWPCA))],axis=1)
+lasso_regcoefWPCAdf  = pd.concat([pd.DataFrame(zip(ftestLWPCA[i][0],lasso_coef_WPCA[i])) for i in range(len(ftestLWPCA))],axis=1)

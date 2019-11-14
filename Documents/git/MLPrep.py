@@ -6,6 +6,7 @@ Created on Fri Sep 20 00:32:38 2019
 """
 
 # %% MACHINE LEARNING  ######################################################
+from statsmodels.tsa.vector_ar.var_model1 import VAR
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression, Lasso, Ridge
@@ -14,19 +15,20 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.feature_selection import f_regression
-import scipy
+from scipy.stats import normaltest
 from timeit import default_timer as timer
 #from sklearn.tree.tree import DecisionTreeClassifier
 #from sklearn.tree.export import export_graphviz
 #import mglearn
 #import graphviz
 # =============================================================================
+# AIC to measure the forecasts
 def aic(y, y_pred, k):
    resid = np.array([y - y_pred]).T
    rss   = np.sum(resid**2)
    AIC   = 2*k - 2*len(y)*np.log(rss/len(y))
    return AIC
-
+# F-test to compare restricted and unrestricted models
 def F(y1,y1_pred,y2, y2_pred,p1,p2):
     resid1 = np.array([y1 - y1_pred]).T
     rss1   = np.sum(resid1**2)
@@ -37,7 +39,7 @@ def F(y1,y1_pred,y2, y2_pred,p1,p2):
 # =============================================================================
 tsplit          = TimeSeriesSplit(n_splits=5, max_train_size=250)
 tsplit2         = TimeSeriesSplit(n_splits=3)
-pca             = PCA(n_components=5, whiten=1, random_state=42)
+pca             = PCA(n_components=3, whiten=1, random_state=42)
 scaler          = StandardScaler()
 scaler2         = StandardScaler()
 # =============================================================================

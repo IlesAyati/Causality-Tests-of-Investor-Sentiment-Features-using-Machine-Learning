@@ -112,7 +112,7 @@ fig3.savefig('C:/Users/yeeya/Figures/LinRegAIC.pdf', bbox_inches = 'tight', pad_
 # LASSORIDGE
 ## Plot some random draws of Random Forest predictions (orange) vs reality (blue)
 idx = np.arange(0,180,6)
-idx = choice(idx) # Pick random prediction
+idx = choice(idx) # Pick random prediction .. 42
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 fig2, axs = plt.subplots(7)
@@ -139,7 +139,7 @@ plt.bar(range(2,146,4),lassoresultsWO.iloc[:,-1], align='edge', alpha=0.5, label
 plt.bar(range(3,147,4),lassoresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Lasso: With Feature')
 plt.xticks(ticks=np.arange(0,len(ridgeresultsWO)*4,step=24), labels=list_of_responses)
 plt.xlim(0,len(ridgeresultsWO)*4)
-plt.legend()
+plt.legend(loc='lower right')
 plt.grid(axis='x')
 plt.ylabel('AIC')
 fig3.savefig('C:/Users/yeeya/Figures/RLRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
@@ -148,10 +148,10 @@ fig3.savefig('C:/Users/yeeya/Figures/RLRegAIC.pdf', bbox_inches = 'tight', pad_i
 fig4 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.bar(range(0,90,3),linresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='OLS PC')
-plt.bar(range(1,91,3),ridgeresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Ridge PC')
-plt.bar(range(2,92,3),lassoresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Lasso PC')
-plt.xticks(ticks=np.arange(0,len(linresultsWPCA)*3,step=15), labels=list_of_responses)
+plt.bar(range(0,18,3),linresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='OLS PC')
+plt.bar(range(1,19,3),ridgeresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Ridge PC')
+plt.bar(range(2,20,3),lassoresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Lasso PC')
+plt.xticks(ticks=np.arange(0,len(linresultsWPCA)*3,step=3), labels=list_of_responses)
 plt.xlim(0,len(linresultsWPCA)*3)
 plt.legend()
 plt.grid(axis='x')

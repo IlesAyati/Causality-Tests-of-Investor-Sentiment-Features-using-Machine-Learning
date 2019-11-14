@@ -64,9 +64,9 @@ for train_index,test_index in tsplit.split(regdata.index):
         for exog in notff3:
             ## Model Selection
             modelselectWO.append(np.max([1,VAR(Xwof_train[[resp] + ['ret']],
-                                   dates=y_train2.index).select_order(maxlags=None).aic]))
+                                   dates=y_train2.index).select_order(maxlags=12).aic]))
             modelselectW.append(np.max([1,VAR(Xwf_train[[resp] + ['ret'] + [exog]],
-                                   dates=y_train2.index).select_order(maxlags=None).aic]))
+                                   dates=y_train2.index).select_order(maxlags=12).aic]))
             # Define lagged X w.r.t AIC
             Xwof_train_L   = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
                                                         maxlag0=modelselectWO[-1],trim='forward', 
@@ -105,9 +105,9 @@ for train_index,test_index in tsplit.split(regdata.index):
             axLinW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], y_predLinW[-1]]).T)
             ## Heteroscedasticity and autocorrelation tests
             Hetlin_regWO.append(sm.stats.diagnostic.het_white(np.array([axLinWO[-1][:,0] - axLinWO[-1][:,1]]).T, 
-                                                              sm.add_constant(Xwof_test_L)))
+                                                              sm.add_constant(Xwof_test_L.values)))
             Hetlin_regW.append(sm.stats.diagnostic.het_white(np.array([axLinW[-1][:,0] - axLinW[-1][:,1]]).T, 
-                                                             sm.add_constant(Xwf_test_L)))
+                                                             sm.add_constant(Xwf_test_L.values)))
             acorrlin_regWO.append(sm.stats.diagnostic.acorr_ljungbox(axLinWO[-1][:,0] - axLinWO[-1][:,1]))
             acorrlin_regW.append(sm.stats.diagnostic.acorr_ljungbox(axLinW[-1][:,0] - axLinW[-1][:,1]))
             ## Performances - R squared - Inaccurate due to violated assumptions
@@ -121,11 +121,8 @@ t1 = timer()
 print(t1-t0)
 # =============================================================================
 ## Alternative scoring on test set: AIC
-# We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
-# Each columns alternates between true y_test and predicted y_test
+# ax**** are in (y_true, y_prediction) pairs. 
 # =============================================================================
-lin_regcoefWO= np.array(lin_regcoefWO)
-lin_regcoefW = np.array(lin_regcoefW)
 linresultsWO = []
 linresultsW  = []
 linresidWO   = []
@@ -153,13 +150,20 @@ linresultsW  = pd.DataFrame(np.split(np.array(linresultsW), 5),
                             columns=[notff3[i] + str('_L') for i in range(len(notff3))]*6, 
                             index=['Split' + str(i+1) for i in range(5)]).T
 print('Mean AIC with feature:', linresultsW.mean(axis=1))
-
-### F-tests in concetenated dataframe
-ftestWO      = pd.concat([pd.DataFrame(zip(ftestWO[i][0],ftestWO[i][1])) for i in range(len(ftestWO))],axis=1)
-ftestW       = pd.concat([pd.DataFrame(zip(ftestW[i][0],ftestW[i][1])) for i in range(len(ftestW))],axis=1)
-# Residuals
-linresidWO = pd.DataFrame(linresidWO)
-linresidW  = pd.DataFrame(linresidW)
+# =============================================================================
+# Normally distributed residuals ? 
+NormresidWO     = [normaltest(linresidWO[i], axis=0, nan_policy='omit') for i in range(len(linresidWO))]
+NormresidW      = [normaltest(linresidW[i], axis=0, nan_policy='omit') for i in range(len(linresidW))]
+# Count number of regressions with non-normal residuals
+NormPropWO      = np.count_nonzero([NormresidWO[i][1] < 0.05 for i in range(len(NormresidWO))])
+NormPropW       = np.count_nonzero([NormresidW[i][1] < 0.05 for i in range(len(NormresidW))])
+# =============================================================================
+# Count number of regressions with heteroscedastic residuals (5%)
+HetPropWO   = np.count_nonzero(np.array([Hetlin_regWO[i][1] for i in range(len(Hetlin_regWO))]) < 0.05)
+HetPropW    = np.count_nonzero(np.array([Hetlin_regW[i][1] for i in range(len(Hetlin_regW))]) < 0.05)
+# =============================================================================
+# Coefficients
+lin_regcoefWdf  = pd.concat([pd.DataFrame(zip(ftestW[i][0],lin_regcoefW[i])) for i in range(len(ftestWO))],axis=1)
 # =============================================================================
 # %% OLS: PRINCIPAL COMPONENTS ###############################################
 #
@@ -169,28 +173,19 @@ linresidW  = pd.DataFrame(linresidW)
 pclist            = []
 lin_regWPCA       = []
 lin_regcoefWPCA   = []
-lin_regWPCA2      = []
-lin_regcoefWPCA2  = []
 #
 y_predLinWPCA     = []
 axLinWPCA         = []
-y_predLinWPCA2    = []
-axLinWPCA2        = []
 ftestWPCA         = []
 #
 trainscoreWPCA    = []
-trainscoreWPCA2   = []
 testscoreWPCA     = []
-testscoreWPCA2    = []
 #
 countiter         = []
 modelselectWPCA   = []
-modelselectWPCA2  = []
 #
 Hetlin_regWPCA    = []
-Hetlin_regWPCA2   = []
 acorrlin_regWPCA  = []
-acorrlin_regWPCA2 = []
 #
 t0 = timer()
 for train_index,test_index in tsplit.split(regdata.index):
@@ -232,63 +227,68 @@ for train_index,test_index in tsplit.split(regdata.index):
     Xwf_testPCA  = pd.concat([Xwof_test,Xwf_testPCA], axis=1)
 ##############################################################################
     for resp in list_of_responses:
-        for pc in pclist[-1]:
-            ## Model Selection
-            modelselectWPCA  = [1] # Only one lag for PCs
-            # Define lagged X then trim the initial observations (with no input)
-            Xwf_train_L    = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + [pc]],
-                                                        maxlag0=modelselectWPCA[-1],trim='forward', 
-                                                        dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + [pc]].index[:modelselectWPCA[-1]],
-                                                                                        columns=Xwf_trainPCA[[resp] + ['ret'] + [pc]].columns[0])
-            Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + [pc]],
-                                                        maxlag0=np.max([1,modelselectWPCA[-1]]),trim='forward', 
-                                                        dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + [pc]].index[:modelselectWPCA[-1]],
-                                                                                        columns=Xwf_testPCA[[resp] + ['ret'] + [pc]].columns[0])
-            # Correlation matrices of lagged X
-            CorrXwf_train_L.append(Xwf_train_L.corr())
-            CorrXwf_test_L.append(Xwf_test_L.corr())
-            ## Train model: Not really relevant for LinearRegression (no hyperparameters)
-            model      = {'OLSwf': LinearRegression(fit_intercept=False, normalize=False)}
-            ## Predictions
-            lin_regWPCA.append(model['OLSwf'].fit(Xwf_train_L, \
-                                                  y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
-            lin_regcoefWPCA.append(lin_regWPCA[-1].coef_)
-            y_predLinWPCA.append(lin_regWPCA[-1].predict(Xwf_test_L))
-            ftestWPCA.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
-            axLinWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], \
-                                       y_predLinWPCA[-1]]).T)
-            ## Heteroscedasticity and autocorrelation tests
-            Hetlin_regWPCA.append(sm.stats.diagnostic.het_white(np.array([axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]]).T, \
-                                                                sm.add_constant(Xwf_test_L)))
-            acorrlin_regWPCA.append(sm.stats.diagnostic.acorr_ljungbox(axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]))
-            ## Performances - R squared
-            ## Compare train set performance
-            trainscoreWPCA.append(model['OLSwf'].score(Xwf_train_L,y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
-            ## Compare test set performance
-            testscoreWPCA.append(model['OLSwf'].score(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
+        ## Model Selection
+        # Only 1 lag:
+        modelselectWPCA  = [1]
+        # Define lagged X then trim the initial observations (with no input)
+        Xwf_train_L    = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]],
+                                                    maxlag0=modelselectWPCA[-1],trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWPCA[-1]],
+                                                                                    columns=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + pclist[-1]],
+                                                    maxlag0=np.max([1,modelselectWPCA[-1]]),trim='forward', 
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWPCA[-1]],
+                                                                                    columns=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
+        # Correlation matrices of lagged X
+        CorrXwf_train_L.append(Xwf_train_L.corr())
+        CorrXwf_test_L.append(Xwf_test_L.corr())
+        ## Train model: Not really relevant for LinearRegression (no hyperparameters)
+        model      = {'OLSwf': LinearRegression(fit_intercept=False, normalize=False)}
+        ## Predictions
+        lin_regWPCA.append(model['OLSwf'].fit(Xwf_train_L, \
+                                              y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        lin_regcoefWPCA.append(lin_regWPCA[-1].coef_)
+        y_predLinWPCA.append(lin_regWPCA[-1].predict(Xwf_test_L))
+        ftestWPCA.append([Xwf_test_L.columns.values,f_regression(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)])[0]])
+        axLinWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], \
+                                   y_predLinWPCA[-1]]).T)
+        ## Heteroscedasticity and autocorrelation tests
+        Hetlin_regWPCA.append(sm.stats.diagnostic.het_white(np.array([axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]]).T, \
+                                                            sm.add_constant(Xwf_test_L.values)))
+        acorrlin_regWPCA.append(sm.stats.diagnostic.acorr_ljungbox(axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]))
+        ## Performances - R squared
+        ## Compare train set performance
+        trainscoreWPCA.append(model['OLSwf'].score(Xwf_train_L,y_train2[resp].iloc[y_train2.index.isin(Xwf_train_L.index)]))
+        ## Compare test set performance
+        testscoreWPCA.append(model['OLSwf'].score(Xwf_test_L,y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)]))
 t1 = timer()
 print(t1-t0)
 # =============================================================================
 ## Alternative scoring on test set: AIC
 # We restructure (y, y_prediction) pairs so that all of them are in one matrix. 
 # Each columns alternates between true y_test and predicted y_test
-lin_regcoefWPCA = np.array(lin_regcoefWPCA)
 linresultsWPCA  = []
 linresidWPCA    = []
 # Get the results
 for i in range(0,len(axLinWPCA)):
     linresultsWPCA.append(aic(axLinWPCA[i][:,0],axLinWPCA[i][:,1],lin_regcoefWPCA[i].shape[0]))
-    linresidWPCA.append(axLinWPCA[i][:,0] - axLinWPCA[i][:,1])  
-#  
+    linresidWPCA.append(axLinWPCA[i][:,0] - axLinWPCA[i][:,1])
+# =============================================================================
 ## Mean performance of each feature
 linresultsWPCA  = pd.DataFrame(np.split(np.array(linresultsWPCA), 5), 
-                               columns=[np.array(notff3).repeat(5)[i] + '_PC' + str(i+1) for i in range(30)], 
+                               columns=[np.array(list_of_responses)[i] + '+PCs' for i in range(6)], 
                                index=['Split' + str(i+1) for i in range(5)]).T
-print('Mean AIC with PC = ',
+print('Mean AIC with PCs = ',
       linresultsWPCA.mean(axis=1))
-#
-### F-tests in concetenated dataframe
-ftestWPCA    = pd.concat([pd.DataFrame(zip(ftestWPCA[i][0],ftestWPCA[i][1])) for i in range(len(ftestWPCA))],axis=1)
-# Residuals
-linresidWPCA = pd.DataFrame(linresidWPCA)
+# =============================================================================
+# Normally distributed residuals ? 
+NormresidWPCA   = [normaltest(linresidWPCA[i], axis=0, nan_policy='omit') for i in range(len(linresidWPCA))]
+# Count number of regressions with non-normal residuals
+NormPropWPCA    = np.count_nonzero([NormresidWPCA[i][1] < 0.05 for i in range(len(NormresidWPCA))])
+# =============================================================================
+# Count number of regressions with heteroscedastic residuals (5%-level)
+HetPropWPCA     = np.count_nonzero(np.array([Hetlin_regWPCA[i][1] for i in range(len(Hetlin_regWPCA))]) < 0.05)
+# =============================================================================
+# Coefficients 
+lin_regcoefWPCAdf  = pd.concat([pd.DataFrame(zip(ftestWPCA[i][0],lin_regcoefWPCA[i])) for i in range(len(ftestWPCA))],axis=1)
 # =============================================================================
