@@ -3,10 +3,9 @@ Preliminary thesis.
 
 # Instructions
 MasterThesisScript.py contains the entire script in one .py file.
-ExecutionFile.py allows for execution of the script by module. There are 8 executable scripts.
-Order is important: All modules must be executed in the preset order. 
-All regressions depend on data preperation modules DataCollection.py,
-and all machine learning modules depend on MLPrep.py. 
+ExecutionFile.py allows for execution of the script by module. There are 8 executable scripts. 
+All scripts depend on data preperation module DataCollection.py,
+and all machine learning modules additionally depend on MLPrep.py. 
 
 # Modules
 1. DataCollection.py : Loads data and defines variables. 
