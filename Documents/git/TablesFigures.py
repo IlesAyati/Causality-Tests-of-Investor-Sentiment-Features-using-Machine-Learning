@@ -65,6 +65,18 @@ plt.yticks(ticks=range(6), labels=list_of_responses)
 reg3plot = plt.gcf()
 #reg3plot.savefig('C:/Users/yeeya/Figures/reg3plot.pdf')
 plt.show()
+
+### PC feature relation
+fig4 = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+corrplot = sns.heatmap(corrmat, vmin=-1, vmax=1, center=0, 
+                       cmap=sns.diverging_palette(20, 220, n=200), square=True)
+corrplot.set_xticklabels(corrplot.get_xticklabels(), rotation=45, 
+                         horizontalalignment='right')
+fig4 = plt.gcf()
+fig4.savefig('C:/Users/yeeya/Figures/corrplot.pdf', bbox_inches = 'tight', pad_inches = 0)
+plt.show()
 ##############################################################################
 # %% VAR results ##############################################################
 # Plot conclusion of Granger causality tests
@@ -100,13 +112,16 @@ plt.show()
 fig3 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.bar(range(0,72,2),linresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='OLS: Without Feature')
-plt.bar(range(1,73,2),linresultsW.iloc[:,-1], align='edge', alpha=0.5, label='OLS: With Feature')
-plt.xticks(ticks=np.arange(0,len(linresultsWO)*2,step=12), labels=list_of_responses)
-plt.xlim(0,len(linresultsWO)*2)
-plt.legend()
+for i in range(6): 
+    plt.bar(range(0,36,1),np.array(linresultsW.iloc[:,-1].values-linresultsWO.iloc[:,-1].values), 
+            align='edge', alpha=1, color=['C'+str(i) for i in range(6)])
+    plt.bar(range(0,36,1), range(0,1,1), label=notff3[i])
+    plt.xticks(ticks=np.arange(0,len(linresultsWO),step=6), labels=list_of_responses)
+    plt.xlim(0,len(linresultsWO))
+plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
+           fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
-plt.ylabel('AIC')
+plt.ylabel('$\Delta$ AIC')
 fig3.savefig('C:/Users/yeeya/Figures/LinRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 ##############################################################################
 # LASSORIDGE
@@ -133,64 +148,104 @@ plt.show()
 fig3 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.bar(range(0,144,4),ridgeresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='Ridge: Without Feature')
-plt.bar(range(1,145,4),ridgeresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Ridge: With Feature')
-plt.bar(range(2,146,4),lassoresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='Lasso: Without Feature')
-plt.bar(range(3,147,4),lassoresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Lasso: With Feature')
-plt.xticks(ticks=np.arange(0,len(ridgeresultsWO)*4,step=24), labels=list_of_responses)
-plt.xlim(0,len(ridgeresultsWO)*4)
-plt.legend(loc='lower right')
+for i in range(6): 
+    plt.bar(range(0,36,1),np.array(ridgeresultsW.iloc[:,-1].values-ridgeresultsWO.iloc[:,-1].values), 
+            align='edge', alpha=1, color=['C'+str(i) for i in range(6)])
+    plt.bar(range(0,36,1), range(0,1,1), label=notff3[i])
+    plt.xticks(ticks=np.arange(0,len(ridgeresultsW),step=6), labels=list_of_responses)
+    plt.xlim(0,len(ridgeresultsW))
+plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
+           fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
-plt.ylabel('AIC')
-fig3.savefig('C:/Users/yeeya/Figures/RLRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+plt.ylabel('$\Delta$ AIC')
+fig3.savefig('C:/Users/yeeya/Figures/R_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 
-# AIC with PCs: OLS, Ridge and Lasso
 fig4 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.bar(range(0,18,3),linresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='OLS PC')
-plt.bar(range(1,19,3),ridgeresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Ridge PC')
-plt.bar(range(2,20,3),lassoresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Lasso PC')
-plt.xticks(ticks=np.arange(0,len(linresultsWPCA)*3,step=3), labels=list_of_responses)
-plt.xlim(0,len(linresultsWPCA)*3)
-plt.legend()
+for i in range(6): 
+    plt.bar(range(0,36,1),np.array(lassoresultsW.iloc[:,-1].values-lassoresultsWO.iloc[:,-1].values), 
+            align='edge', alpha=1, color=['C'+str(i) for i in range(6)])
+    plt.bar(range(0,36,1), range(0,1,1), label=notff3[i])
+    plt.xticks(ticks=np.arange(0,len(lassoresultsW),step=6), labels=list_of_responses)
+    plt.xlim(0,len(lassoresultsW))
+plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
+           fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
-plt.ylabel('AIC')
-fig4.savefig('C:/Users/yeeya/Figures/PCRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+plt.ylabel('$\Delta$ AIC')
+fig4.savefig('C:/Users/yeeya/Figures/L_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+#
+# AIC with PCs: OLS, Ridge and Lasso
+dAIC1 = linresultsWPCA.iloc[:,-1].values-[linresultsWO.iloc[i,-1] for i in range(0,36,6)]
+dAIC2 = ridgeresultsWPCA.iloc[:,-1].values-[ridgeresultsWO.iloc[i,-1] for i in range(0,36,6)]
+dAIC3 = lassoresultsWPCA.iloc[:,-1].values-[lassoresultsWO.iloc[i,-1] for i in range(0,36,6)]
+fig4 = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+for i in range(6): 
+    plt.bar(range(0,18,3),dAIC1,
+            align='edge', alpha=0.2, color=['C'+str(i) for i in range(6)])
+    plt.bar(range(1,19,3),dAIC2,
+            align='edge', alpha=0.4, color=['C'+str(i) for i in range(6)])
+    plt.bar(range(2,20,3),dAIC3,
+            align='edge', alpha=0.75, color=['C'+str(i) for i in range(6)])
+    plt.xticks(ticks=np.arange(0,18,step=3), labels=list_of_responses)
+    plt.xlim(0,18)
+plt.bar(range(0,18,3),range(0,1,1),
+        align='edge', alpha=0.3, color=['C0'], label='OLS')
+plt.bar(range(0,18,3),range(0,1,1),
+        align='edge', alpha=0.4, color=['C0'], label='Ridge')
+plt.bar(range(0,18,3),range(0,1,1),
+        align='edge', alpha=0.8, color=['C0'], label='Lasso')
+plt.legend(ncol=1)
+plt.grid(axis='x')
+plt.ylabel('$\Delta$ AIC')
+fig4.savefig('C:/Users/yeeya/Figures/PC_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 
 # MSE plot Forest
 fig5 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.bar(range(0,18,3),RFRresultsWO.iloc[:,-1], align='edge', alpha=0.5, label='Forest: Without Features')
-plt.bar(range(1,19,3),RFRresultsW.iloc[:,-1], align='edge', alpha=0.5, label='Forest: With Features')
-plt.bar(range(2,20,3),RFRresultsWPCA.iloc[:,-1], align='edge', alpha=0.5, label='Forest: With PCs')
-plt.xticks(ticks=np.arange(0,len(RFRresultsWO)*3,step=3), labels=list_of_responses)
-plt.xlim(0,len(RFRresultsWO)*3)
-plt.legend(loc='lower left')
+for i in range(6): 
+    plt.bar(range(0,12,2),np.array(RFRresultsW.iloc[:,-1].values-RFRresultsWO.iloc[:,-1].values), 
+            align='edge', alpha=0.25, color='C0')
+    plt.bar(range(1,13,2),np.array(RFRresultsWPCA.iloc[:,-1].values-RFRresultsWO.iloc[:,-1].values), 
+            align='edge', alpha=0.25, color='C1')
+    plt.xticks(ticks=np.arange(0,len(RFRresultsW)*2,step=2), labels=list_of_responses)
+    plt.xlim(0,len(RFRresultsW)*2)
+plt.bar(range(0,12,2), range(0,1,1),align='edge', alpha=0.6, 
+        color=['C0'], label='Forest: $MSE_{X}-MSE_{X\'}$')
+plt.bar(range(1,13,2), range(0,1,1),align='edge', alpha=0.6, 
+        color=['C1'], label='Forest: $MSE_{X_{PC}}-MSE_{X\'}$')
+plt.legend(ncol=2, bbox_to_anchor=[0, -0.25], loc='lower left', 
+           fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
-plt.ylabel('Mean Squared Error')
+plt.ylabel('$\Delta$ Mean Squared Error')
 fig5.savefig('C:/Users/yeeya/Figures/RFRresults.pdf', bbox_inches = 'tight', pad_inches = 0)
 
-# MSE plot Forest
+# Feature importance plot Forest
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 fig6, axs6 = plt.subplots(3, sharex=True)
-fig6.set_figheight(8)
+fig6.set_figheight(7)
 fig6.set_figwidth(7)
-fig6.set_label("")
-FIWOsplit5[ranked1].plot(ax=axs6[0], kind='barh', alpha=0.5, 
-       color= 'red',
-       label='Feature Importances: Without features')
-FIWsplit5[ranked2].plot(ax=axs6[1], kind='barh',  alpha=0.5, 
-       color= 'blue',
-       label='Feature Importances: With features')
-FIWPCAsplit5[ranked3].plot(ax=axs6[2], kind='barh', alpha=0.5, 
-       color= 'purple',
-       label='Feature Importances: PCs')
-fig6.legend(loc='lower left')
-plt.xlabel('Relative Importance')
+for i in range(0,6,1): 
+    FIWOsplit5.mean(axis=1)[rankedWO].plot(ax=axs6[0], kind='barh', alpha=0.5, 
+            color= 'mediumaquamarine', edgecolor = 'black')
+    FIWsplit5.mean(axis=1)[rankedW].plot(ax=axs6[1], kind='barh',  alpha=0.5, 
+           color= 'blue', edgecolor = 'black')
+    FIWPCAsplit5[ranked3].plot(ax=axs6[2], kind='barh', alpha=0.5, 
+           color= 'seagreen', edgecolor = 'black')
+fig6.legend('')
+plt.xlabel('Mean Relative Importance')
 fig6.savefig('C:/Users/yeeya/Figures/RFRFI.pdf', bbox_inches = 'tight', pad_inches = 0)
+
+# Visualization, 100 trees:
+i_tree = 0
+for tree_in_forest in forest_regWO[-1].estimators_:
+    with open('tree_' + str(i_tree) + '.png', 'w') as retpostree2:
+        retpostree2 = export_graphviz(tree_in_forest, out_file = 'retpostree2.png')
+    i_tree = i_tree + 1
 # %%   TABLES 
 """
 ## Export COT table to latex
@@ -221,10 +276,22 @@ with open('params3copy.tex','w') as tf:
 with open('dfall[notff3].corr().tex','w') as tf:
     tf.write(dfall[notff3].corr().to_latex(float_format='%.3f'))
     
+## Export table corrmatrix to latex
+with open('corrmat.tex','w') as tf:
+    tf.write(corrmat.to_latex(float_format='%.3f'))
+    
 ## Export tables VARpvalues1 and VARpvalues11 to latex
 with open('var1pvals.tex','w') as tf:
     tf.write(var1pvals.to_latex())
 with open('var11pvals.tex','w') as tf:
     tf.write(var11pvals.to_latex())
+    
+## Export table corrmatrix to latex
+with open('RFRresultsWO.tex','w') as tf:
+    tf.write(RFRresultsWO.to_latex(float_format='%.3f'))
+    
+## Export table Feature Importance table to latex
+with open('FIWPCAsplit5.tex','w') as tf:
+    tf.write(FIWPCAsplit5.to_latex(float_format='%.3f'))
 """
 ##############################################################################

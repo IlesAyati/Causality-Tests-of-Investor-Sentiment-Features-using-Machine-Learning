@@ -9,9 +9,9 @@ from statsmodels.tsa.vector_ar.var_model1 import VAR
 #
 ###### Cointegration test ####################################################
 Pdata2Price        = pd.DataFrame(np.cumprod(np.exp(Pdata2.values),axis=0), columns=Pdata2.columns)
-FF3Price           = np.cumprod(np.exp(famafrench),axis=0)
+FF3Price           = np.cumprod(np.exp(famafrench),axis=0) 
 COT2Price          = np.cumprod(np.exp(dfCOT), axis=0)
-vix2Price          = np.cumprod(np.exp(vixret))
+vix2Price          = np.cumprod(np.exp(vixret)) # same as the actual VIX Index.
 data2Price         = pd.concat([cefd,FF3Price,COT2Price,vix2Price], 
                                axis=1)
 data2Price.columns = dfall.columns
@@ -27,7 +27,7 @@ for i in range(len(Pdata2Price.columns)):
         ERCO.append(sm.tsa.stattools.coint(Pdata2Price.loc[:,Pdata2Price.columns[i]],
                                            data2Price.loc[:,data2Price.columns[j]],
                                            maxlag=None))
-# Variables are NOT cointegrated in the levels.
+# Variables are NOT cointegrated in the levels --> No long-run dynamics.
 # Variables are NOT stationary in the levels --> Differenced VAR. 
 ##############################################################################
 #

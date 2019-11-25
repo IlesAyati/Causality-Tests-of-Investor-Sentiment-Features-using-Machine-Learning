@@ -7,15 +7,6 @@ Created on Fri Sep 20 00:15:09 2019
 from scipy.linalg import toeplitz
 # %% GLS REGRESSIONS ##########################################################
 
-######  Define regdata - The regression dataset ##############################
-Pdata2            = pd.DataFrame(Pdata[1::])
-Pdata2.index      = vixdata.index[1:]
-list_of_responses = ["SMALLLoBM", "ME1BM2", "SMALLHiBM", "BIGLoBM", "ME2BM2", "BIGHiBM"]
-Pdata2.columns    = list_of_responses
-regdata           = pd.concat([Pdata2,dfall],axis=1,ignore_index=False)
-regdata.columns   = np.append(list_of_responses,dfall.columns.values)
-##############################################################################
-
 #### Regression 1 
 # Univariate regression of each feature on each stock portfolio
 reg1   = []

@@ -99,6 +99,17 @@ dfall.index     = vixdata.index[1:]
 # Correlation matrix of features
 dfall[notff3].corr()
 # There seems to be multicollinearity in the features. Extracting the PCs
-smPC            = sm.PCA(dfall, standardize=1, method='svd')
+smPC            = sm.PCA(dfall, standardize=1, method='svd', ncomp=3)
 smPCcorr        = smPC.scores.corr()
 dfallPC         = smPC.scores
+dfallPC.columns = ['PC' + str(i+1) for i in range(len(dfallPC.columns))]
+# Correlation matrix of features AND PCs
+corrmat = pd.concat([dfallPC, dfall[['ret'] + notff3]],axis=1).corr()
+######  Define regdata - The regression dataset ##############################
+Pdata2            = pd.DataFrame(Pdata[1::])
+Pdata2.index      = vixdata.index[1:]
+list_of_responses = ["SMALLLoBM", "ME1BM2", "SMALLHiBM", "BIGLoBM", "ME2BM2", "BIGHiBM"]
+Pdata2.columns    = list_of_responses
+regdata           = pd.concat([Pdata2,dfall],axis=1,ignore_index=False)
+regdata.columns   = np.append(list_of_responses,dfall.columns.values)
+##############################################################################

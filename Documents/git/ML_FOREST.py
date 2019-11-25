@@ -1,7 +1,7 @@
 #%% RANDOM FOREST FEATURE SELECTION ###########################################
 
 ## Defining grid for Gridsearch cross validation ##
-n_estimators      = [1000]
+n_estimators      = [100]
 # Server execution uses:
 #[int(x) for x in np.linspace(start = 50, stop = 500, num = 3)]
 
@@ -156,7 +156,7 @@ print('Mean MSE with features = ', RFRresultsW.mean(axis=1))
 # =============================================================================
 FIWO = pd.DataFrame()
 FIW = pd.DataFrame()
-for i in range(len(forest_regW)):
+for i in range(len(forest_regWO)):
     FIWO[i] = forest_regWO[i].feature_importances_
     FIWO.index = Xwof_train_L.columns
     FIW[i] = forest_regW[i].feature_importances_
@@ -166,10 +166,15 @@ FIW.columns = list_of_responses*5
 print('Mean of feature importance without features = ', FIWO.mean(axis = 1))
 print('Mean of feature importance with features= ', FIW.mean(axis = 1))
 # For plots, the mean feature importance of the last split is used:
-FIWOsplit5        = np.mean(FIWO.iloc[:,-6:],axis=1)
-ranked1           = np.argsort(FIWOsplit5)
-FIWsplit5         = np.mean(FIW.iloc[:,-6:],axis=1)
-ranked2           = np.argsort(FIWsplit5)
+FIWOsplit5        = FIWO.iloc[:,-6:]
+FIWOsplit5.index  = np.insert(FIWOsplit5.index,1,'response.L.1')[1:]
+ranked1           = pd.DataFrame([np.argsort(FIWOsplit5[i]) for i in FIWOsplit5.columns])
+FIWsplit5         = FIW.iloc[:,-6:]
+FIWsplit5.index   = np.insert(FIWsplit5.index,1,'response.L.1')[1:]
+ranked2           = pd.DataFrame([np.argsort(FIWsplit5[i]) for i in FIWsplit5.columns])
+# For plot:
+rankedWO          = np.argsort(FIWOsplit5.mean(axis=1))
+rankedW           = np.argsort(FIWsplit5.mean(axis=1))
 # =============================================================================
 #%% Random Forest with PCs ###################################################
 #
@@ -226,14 +231,14 @@ for train_index,test_index in tsplit.split(regdata.index):
         # Add number of lags corresponding to iteration number from OLS with features
         modelselectWRFR = [1]
         # Define lagged X w.r.t AIC
-        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist],\
+        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]],\
                                                     maxlag0=modelselectWRFR[-1],trim='forward', \
-                                                    dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + pclist].index[:modelselectWRFR[-1]],
-                                                                                    columns=Xwf_trainPCA[[resp] + ['ret'] + pclist].columns[0])
-        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + pclist],\
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + pclist[-1]],\
                                                     maxlag0=modelselectWRFR[-1],trim='forward', \
-                                                    dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + pclist].index[:modelselectWRFR[-1]],
-                                                                                    columns=Xwf_testPCA[[resp] + ['ret'] + pclist].columns[0])
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
         # Train models
         model   = { \
                    'RFRWPCA': GridSearchCV(RFR, param_grid=random_grid, \
@@ -280,5 +285,8 @@ FIWPCA.columns      = list_of_responses*5
 print('Mean of relative importance with PCs= ', FIWPCA.mean(axis = 1))
 # For plots, the mean feature importance of the last split is used:
 FIWPCAsplit5        = np.mean(FIWPCA.iloc[:,-6:],axis=1)
+FIWPCAsplit5.index  = np.insert(FIWPCAsplit5.index,1,'response.L.1')[1:]
 ranked3             = np.argsort(FIWPCAsplit5)
+FIWPCAsplit5        = FIWPCA.iloc[:,-6:]
+FIWPCAsplit5.index  = np.insert(FIWPCAsplit5.index,1,'response.L.1')[1:]
 # =============================================================================
