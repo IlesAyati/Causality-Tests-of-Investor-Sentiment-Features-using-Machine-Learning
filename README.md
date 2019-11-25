@@ -5,7 +5,7 @@ Preliminary thesis.
 MasterThesisScript.py contains the entire script in one .py file.
 ExecutionFile.py allows for execution of the script by module. There are 8 executable scripts. 
 All scripts depend on data preperation module DataCollection.py,
-and all machine learning modules additionally depend on MLPrep.py. 
+and all machine learning modules additionally depend on MLPrep.py. Scripts 6 and 7 also depend on ML_OLS. 
 
 # Modules
 1. DataCollection.py : Loads data and defines variables. 
