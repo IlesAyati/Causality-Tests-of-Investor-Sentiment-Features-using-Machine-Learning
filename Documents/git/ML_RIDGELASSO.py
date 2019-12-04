@@ -51,7 +51,7 @@ testscoreLW       = []
 #
 lasso_params      = {'alpha':[0.005, 0.01, 0.03, 0.05]}
 ridge_params      = {'alpha':[0.005, 0.01, 0.03, 0.05],
-                     'solver': ['svd','lsqr','saga']}
+                     'solver': ['sag','saga']}
 #
 countiter         = []
 modelselect2WO    = []
