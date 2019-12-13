@@ -83,11 +83,11 @@ acorr2ols    = []
 nbyn         = np.arange(len(regdataPC),dtype=np.int32)
 order        = np.array(toeplitz(nbyn),dtype=np.int32)
 for resp in list_of_responses:
-    formula = resp + " ~ comp_0 + comp_1 + comp_2"
+    formula = resp + " ~ PC1 + PC2 + PC3"
     reg2.append(sm.OLS.from_formula(formula, data=regdataPC).fit())
     resid2.append(reg2[-1].resid)
     white2ols.append(sm.stats.diagnostic.het_breuschpagan(resid2[-1], 
-                                                          sm.add_constant(regdataPC[['comp_0', 'comp_1', 'comp_2']])))
+                                                          sm.add_constant(regdataPC[['PC1', 'PC2', 'PC3']])))
     acorr2ols.append(sm.stats.diagnostic.acorr_breusch_godfrey(reg2[-1]))
     res_fit     = sm.OLS(resid2[-1].values[1:], resid2[-1].values[:-1]).fit()
     rho         = res_fit.params

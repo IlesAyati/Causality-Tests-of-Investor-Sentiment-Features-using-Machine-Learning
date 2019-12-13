@@ -104,9 +104,9 @@ for train_index,test_index in tsplit.split(regdata.index):
             axLinWO.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwof_test_L.index)], y_predLinWO[-1]]).T)
             axLinW.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], y_predLinW[-1]]).T)
             ## Heteroscedasticity and autocorrelation tests
-            Hetlin_regWO.append(sm.stats.diagnostic.het_white(np.array([axLinWO[-1][:,0] - axLinWO[-1][:,1]]).T, 
+            Hetlin_regWO.append(sm.stats.diagnostic.het_white(np.array(axLinWO[-1][:,0] - axLinWO[-1][:,1]).T, 
                                                               sm.add_constant(Xwof_test_L.values)))
-            Hetlin_regW.append(sm.stats.diagnostic.het_white(np.array([axLinW[-1][:,0] - axLinW[-1][:,1]]).T, 
+            Hetlin_regW.append(sm.stats.diagnostic.het_white(np.array(axLinW[-1][:,0] - axLinW[-1][:,1]).T, 
                                                              sm.add_constant(Xwf_test_L.values)))
             acorrlin_regWO.append(sm.stats.diagnostic.acorr_ljungbox(axLinWO[-1][:,0] - axLinWO[-1][:,1]))
             acorrlin_regW.append(sm.stats.diagnostic.acorr_ljungbox(axLinW[-1][:,0] - axLinW[-1][:,1]))
@@ -253,7 +253,7 @@ for train_index,test_index in tsplit.split(regdata.index):
         axLinWPCA.append(np.array([y_test2[resp].iloc[y_test2.index.isin(Xwf_test_L.index)], \
                                    y_predLinWPCA[-1]]).T)
         ## Heteroscedasticity and autocorrelation tests
-        Hetlin_regWPCA.append(sm.stats.diagnostic.het_white(np.array([axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]]).T, \
+        Hetlin_regWPCA.append(sm.stats.diagnostic.het_white(np.array(axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]).T, \
                                                             sm.add_constant(Xwf_test_L.values)))
         acorrlin_regWPCA.append(sm.stats.diagnostic.acorr_ljungbox(axLinWPCA[-1][:,0] - axLinWPCA[-1][:,1]))
         ## Performances - R squared

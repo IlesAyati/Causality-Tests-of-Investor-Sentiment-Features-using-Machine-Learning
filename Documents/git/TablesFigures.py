@@ -2,7 +2,7 @@
 """
 Created on Fri Sep 20 00:09:13 2019
 
-@author: yeeya
+@author: iles_
 """
 #from sklearn.tree.export import export_graphviz
 from random import choice
@@ -16,20 +16,26 @@ sixcolors       = ['darkcyan', 'teal', 'seagreen' ,
                    'mediumseagreen' , 'lightseagreen' , 'mediumaquamarine' ]
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-fig, axs = plt.subplots(len(notff3),sharex=True)
-fig.set_figheight(6)
-fig.set_figwidth(8)
-fig.set_label("")
-#fig.suptitle('Timeseries - All features', fontsize=12)   
+fig1, axs1 = plt.subplots(len(notff3),sharex=True)
+fig1.set_figheight(6)
+fig1.set_figwidth(8)
+fig1.set_label("")
+#fig1.suptitle('Timeseries - All features', fontsize=12)   
 for exog, i, color in zip(notff3,range(len(notff3)), sixcolors):
-    dfall[exog].plot(ax=axs[i], color=[color], legend=exog)
-    axs[i].legend(loc='lower left')
-    axs[i].set(xlabel="")
-#fig.savefig('C:/Users/yeeya/Figures/FeaturesSeries.pdf', bbox_inches = 'tight', pad_inches = 0)
+    dfall[exog].plot(ax=axs1[i], color=[color], legend=exog)
+    axs1[i].legend(loc='lower left')
+    axs1[i].set(xlabel="")
+#fig1.savefig('C:/Users/iles_/Figures/FeaturesSeries.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
+
+# Descriptive statistics
+DStats       = regdata.describe().append([regdata.skew(), regdata.kurt()],ignore_index=True)
+DStats.index = ['obs', 'mean', 'std', 'min', '25%', '50%', '75%', 'max','skew','kurt']
+
+
 ##############################################################################
 # %% GLS results ##############################################################
-### Univariate
+### Univariate - T stats
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 tvals1copy[notff3].plot.barh(width=0.8, grid=True, align='edge' , zorder=3)
@@ -40,22 +46,10 @@ plt.yticks(ticks=np.arange(0, 35, step=6), labels=list_of_responses)
 reg1plot = plt.gcf()
 reg1plot.set_figwidth(8)
 reg1plot.set_figheight(5)
-#reg1plot.savefig('C:/Users/yeeya/Figures/reg1plot.pdf')
+#reg1plot.savefig('C:/Users/iles_/Figures/reg1plot.pdf')
 plt.show()
 ##############################################################################
-### Multivariate - COT
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-tvals2copy[['NONPNL','CPNL','NCPNL', 'OI']].plot.barh(width=0.5, grid=True, align='edge' , zorder=3)
-plt.title(r'\textbf{T-stats - Multivariate regressions: COT}', fontsize=11)
-plt.xlabel(r'\textbf{T-stat}', fontsize=10)
-#plt.ylabel(r'\textbf{Regression}', fontsize=10)
-plt.yticks(ticks=range(6), labels=list_of_responses)
-reg2plot = plt.gcf()
-#reg2plot.savefig('C:/Users/yeeya/Figures/reg2plot.pdf')
-plt.show()
-#
-### Multivariate - ALL
+### Multivariate - T stats
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 tvals3copy[notff3].plot.barh(width=0.5, grid=True, align='edge' , zorder=3)
@@ -63,19 +57,19 @@ plt.title(r'\textbf{T-stats - Multivariate regressions: All features}', fontsize
 plt.xlabel(r'\textbf{T-stat}', fontsize=10)
 plt.yticks(ticks=range(6), labels=list_of_responses)
 reg3plot = plt.gcf()
-#reg3plot.savefig('C:/Users/yeeya/Figures/reg3plot.pdf')
+#reg3plot.savefig('C:/Users/iles_/Figures/reg3plot.pdf')
 plt.show()
 
 ### PC feature relation
-fig4 = plt.figure()
+fig2 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 corrplot = sns.heatmap(corrmat, vmin=-1, vmax=1, center=0, 
                        cmap=sns.diverging_palette(20, 220, n=200), square=True)
 corrplot.set_xticklabels(corrplot.get_xticklabels(), rotation=45, 
                          horizontalalignment='right')
-fig4 = plt.gcf()
-fig4.savefig('C:/Users/yeeya/Figures/corrplot.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig2 = plt.gcf()
+fig2.savefig('C:/Users/iles_/Figures/corrplot.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 ##############################################################################
 # %% VAR results ##############################################################
@@ -88,28 +82,28 @@ plt.xlim(0,len(var1yesno))
 plt.legend()
 plt.grid(axis='x')
 ##############################################################################
-#LinearRegression
+# LinearRegression
 ## Plot some random draws of LinearRegression predictions (orange) vs reality (blue)
 idx = np.arange(0,180,6)
 idx = choice(idx) # Pick random prediction
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-fig2, axs = plt.subplots(7)
-fig2.set_figheight(8)
-fig2.set_figwidth(7)
-fig2.set_label("")
-#fig2.suptitle('LinearRegression predictions vs reality', fontsize=12)   
+fig3, axs3 = plt.subplots(7)
+fig3.set_figheight(8)
+fig3.set_figwidth(7)
+fig3.set_label("")
+#fig3.suptitle('LinearRegression predictions vs reality', fontsize=12)   
 for pred in range(6):
-    pd.DataFrame(axLinWO[idx]).plot(ax=axs[0], legend='') # Without
-    pd.DataFrame(axLinW[idx + pred]).plot(ax=axs[pred+1]) # With feature
-    axs[pred+1].legend('',loc='lower left')
+    pd.DataFrame(axLinWO[idx]).plot(ax=axs3[0], legend='') # Without
+    pd.DataFrame(axLinW[idx + pred]).plot(ax=axs3[pred+1]) # With feature
+    axs3[pred+1].legend('',loc='lower left')
     #axs[0].set_xlim([0,len(axLinWO[idx])])
     #axs[pred+1].set_xlim([0,len(axLinWO[idx])])
-fig2.savefig('C:/Users/yeeya/Figures/LinRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig3.savefig('C:/Users/iles_/Figures/LinRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 
 # AIC plot LinReg
-fig3 = plt.figure()
+fig4 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 for i in range(6): 
@@ -122,7 +116,27 @@ plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left',
            fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
 plt.ylabel('$\Delta$ AIC')
-fig3.savefig('C:/Users/yeeya/Figures/LinRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig4.savefig('C:/Users/iles_/Figures/LinRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+
+Linprog = []
+for i in range(6): 
+    Linprog.append(np.array(np.mean(linresultsW[i::6])-np.mean(linresultsWO[i::6])))
+Linprog = pd.DataFrame(Linprog, columns = linresultsW.columns, index=notff3)
+
+# Mean AIC Progression LinReg
+Progfig = plt.figure()
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+for i in range(6): 
+    plt.plot(Linprog.iloc[i,:], alpha=0.8)
+    plt.axhline(y=0, alpha=0.3, color='black', ls='--')
+    plt.bar(range(0,6,1), range(0,1,1), label=notff3[i])
+    plt.xlim(0,4)
+plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
+           fontsize='small', fancybox=True, shadow=True)
+plt.grid(axis='x')
+plt.ylabel('Mean $\Delta$ AIC')
+Progfig.savefig('C:/Users/iles_/Figures/Progfig.pdf', bbox_inches = 'tight', pad_inches = 0)
 ##############################################################################
 # LASSORIDGE
 ## Plot some random draws of Random Forest predictions (orange) vs reality (blue)
@@ -130,22 +144,22 @@ idx = np.arange(0,180,6)
 idx = choice(idx) # Pick random prediction .. 42
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-fig2, axs = plt.subplots(7)
-fig2.set_figheight(8)
-fig2.set_figwidth(7)
-fig2.set_label("")
-#fig2.suptitle('LinearRegression predictions vs reality', fontsize=12)   
+fig5, axs5 = plt.subplots(7)
+fig5.set_figheight(8)
+fig5.set_figwidth(7)
+fig5.set_label("")
+#fig5.suptitle('LinearRegression predictions vs reality', fontsize=12)   
 for pred in range(6):
-    pd.DataFrame(axLinWO[idx]).plot(ax=axs[0], legend='') # Without
-    pd.DataFrame(axLinW[idx + pred]).plot(ax=axs[pred+1]) # With feature
-    axs[pred+1].legend('',loc='lower left')
-    axs[0].set_xlim([0,len(axLinWO[idx])])
-    axs[pred+1].set_xlim([0,len(axLinWO[idx])])
-fig2.savefig('C:/Users/yeeya/Figures/LRRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
+    pd.DataFrame(axLinWO[idx]).plot(ax=axs5[0], legend='') # Without
+    pd.DataFrame(axLinW[idx + pred]).plot(ax=axs5[pred+1]) # With feature
+    axs5[pred+1].legend('',loc='lower left')
+    axs5[0].set_xlim([0,len(axLinWO[idx])])
+    axs5[pred+1].set_xlim([0,len(axLinWO[idx])])
+fig5.savefig('C:/Users/iles_/Figures/LRRegPred.pdf', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 
 # AIC plot Ridge,Lasso regs
-fig3 = plt.figure()
+fig6 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 for i in range(6): 
@@ -158,9 +172,9 @@ plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left',
            fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
 plt.ylabel('$\Delta$ AIC')
-fig3.savefig('C:/Users/yeeya/Figures/R_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig6.savefig('C:/Users/iles_/Figures/R_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 
-fig4 = plt.figure()
+fig7 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 for i in range(6): 
@@ -173,13 +187,13 @@ plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left',
            fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
 plt.ylabel('$\Delta$ AIC')
-fig4.savefig('C:/Users/yeeya/Figures/L_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig7.savefig('C:/Users/iles_/Figures/L_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 #
 # AIC with PCs: OLS, Ridge and Lasso
 dAIC1 = linresultsWPCA.iloc[:,-1].values-[linresultsWO.iloc[i,-1] for i in range(0,36,6)]
 dAIC2 = ridgeresultsWPCA.iloc[:,-1].values-[ridgeresultsWO.iloc[i,-1] for i in range(0,36,6)]
 dAIC3 = lassoresultsWPCA.iloc[:,-1].values-[lassoresultsWO.iloc[i,-1] for i in range(0,36,6)]
-fig4 = plt.figure()
+fig8 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 for i in range(6): 
@@ -200,10 +214,10 @@ plt.bar(range(0,18,3),range(0,1,1),
 plt.legend(ncol=1)
 plt.grid(axis='x')
 plt.ylabel('$\Delta$ AIC')
-fig4.savefig('C:/Users/yeeya/Figures/PC_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig8.savefig('C:/Users/iles_/Figures/PC_RegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 
 # MSE plot Forest
-fig5 = plt.figure()
+fig9 = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 for i in range(6): 
@@ -214,31 +228,31 @@ for i in range(6):
     plt.xticks(ticks=np.arange(0,len(RFRresultsW)*2,step=2), labels=list_of_responses)
     plt.xlim(0,len(RFRresultsW)*2)
 plt.bar(range(0,12,2), range(0,1,1),align='edge', alpha=0.6, 
-        color=['C0'], label='Forest: $MSE_{X}-MSE_{X\'}$')
+        color=['C0'], label='Forest: $\Delta MSE_{X_{i,j}}$')
 plt.bar(range(1,13,2), range(0,1,1),align='edge', alpha=0.6, 
-        color=['C1'], label='Forest: $MSE_{X_{PC}}-MSE_{X\'}$')
+        color=['C1'], label='Forest: $\Delta MSE_{X_{i,PC}}$')
 plt.legend(ncol=2, bbox_to_anchor=[0, -0.25], loc='lower left', 
            fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
 plt.ylabel('$\Delta$ Mean Squared Error')
-fig5.savefig('C:/Users/yeeya/Figures/RFRresults.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig9.savefig('C:/Users/iles_/Figures/RFRresults.pdf', bbox_inches = 'tight', pad_inches = 0)
 
 # Feature importance plot Forest
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-fig6, axs6 = plt.subplots(3, sharex=True)
-fig6.set_figheight(7)
-fig6.set_figwidth(7)
+fig10, axs10 = plt.subplots(3, sharex=True)
+fig10.set_figheight(7)
+fig10.set_figwidth(7)
 for i in range(0,6,1): 
-    FIWOsplit5.mean(axis=1)[rankedWO].plot(ax=axs6[0], kind='barh', alpha=0.5, 
+    FIWOsplit5.mean(axis=1)[rankedWO].plot(ax=axs10[0], kind='barh', alpha=0.5, 
             color= 'mediumaquamarine', edgecolor = 'black')
-    FIWsplit5.mean(axis=1)[rankedW].plot(ax=axs6[1], kind='barh',  alpha=0.5, 
+    FIWsplit5.mean(axis=1)[rankedW].plot(ax=axs10[1], kind='barh',  alpha=0.5, 
            color= 'blue', edgecolor = 'black')
-    FIWPCAsplit5[ranked3].plot(ax=axs6[2], kind='barh', alpha=0.5, 
+    FIWPCAsplit5[ranked3].plot(ax=axs10[2], kind='barh', alpha=0.5, 
            color= 'seagreen', edgecolor = 'black')
-fig6.legend('')
+fig10.legend('')
 plt.xlabel('Mean Relative Importance')
-fig6.savefig('C:/Users/yeeya/Figures/RFRFI.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig10.savefig('C:/Users/iles_/Figures/RFRFI.pdf', bbox_inches = 'tight', pad_inches = 0)
 
 # Visualization, 100 trees:
 i_tree = 0
