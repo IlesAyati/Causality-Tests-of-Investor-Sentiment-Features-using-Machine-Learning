@@ -228,10 +228,10 @@ for i in range(6):
     plt.xticks(ticks=np.arange(0,len(RFRresultsW)*2,step=2), labels=list_of_responses)
     plt.xlim(0,len(RFRresultsW)*2)
 plt.bar(range(0,12,2), range(0,1,1),align='edge', alpha=0.6, 
-        color=['C0'], label='Forest: $\Delta MSE_{X_{i,j}}$')
+        color=['C0'], label='$\Delta MSE_{Features}$')
 plt.bar(range(1,13,2), range(0,1,1),align='edge', alpha=0.6, 
-        color=['C1'], label='Forest: $\Delta MSE_{X_{i,PC}}$')
-plt.legend(ncol=2, bbox_to_anchor=[0, -0.25], loc='lower left', 
+        color=['C1'], label='$\Delta MSE_{PC}}$')
+plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
            fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
 plt.ylabel('$\Delta$ Mean Squared Error')
@@ -260,6 +260,22 @@ for tree_in_forest in forest_regWO[-1].estimators_:
     with open('tree_' + str(i_tree) + '.png', 'w') as retpostree2:
         retpostree2 = export_graphviz(tree_in_forest, out_file = 'retpostree2.png')
     i_tree = i_tree + 1
+
+
+# Gradient descent illustration:
+
+regdataa = pd.DataFrame()
+for i in range(15):
+    regdataa[i] = yeojohnson(regdata.iloc[:,i])[0]
+
+
+x = np.array([regdata.iloc[:,i] for i in range(14)])
+
+for i in range(14):
+    yeojohnson_normplot(x[i], -2, 2, plot=True, N = 299)
+    _, maxlog = yeojohnson(x)
+    ax.axvline(maxlog, color='r')
+plt.show()
 # %%   TABLES 
 """
 ## Export COT table to latex

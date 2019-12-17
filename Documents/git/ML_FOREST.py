@@ -14,9 +14,9 @@ max_depth         = [10, None]
 # max_depth.append(None)
 
 # Minimum number of samples required to split a node
-min_samples_split = [2,10,20,50] 
+min_samples_split = [5,10,20,50] 
 # Minimum number of samples required at each leaf node
-min_samples_leaf  = [2,10,20,50] 
+min_samples_leaf  = [5,10,20,50] 
 # Method of selecting samples for training each tree
 bootstrap         = [True] 
 # Create the random grid
@@ -27,7 +27,8 @@ random_grid       = {'n_estimators': n_estimators,
                      'min_samples_leaf': min_samples_leaf,
                      'bootstrap': bootstrap}
 # Define Random Forest Regressor as estimator for regression
-RFR              = RandomForestRegressor(oob_score=True, criterion='mse') 
+RFR              = RandomForestRegressor(oob_score=True, warm_start= True, 
+                                         criterion='mse') 
 
 ## RANDOM FOREST ####
 #
@@ -58,19 +59,21 @@ for train_index,test_index in tsplit.split(regdata.index):
     Xwf_train, Xwf_test   = regdata[list_of_responses + ['ret'] + notff3].iloc[train_index], regdata[list_of_responses + ['ret'] + notff3].iloc[test_index]
     #
     y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]
-    # Step2: Fit standardizer to train sets
-    scalefitwof    = scaler.fit(Xwof_train) # Standardize to fit train set WITHOUT FEATURE LAGS
-    scalefitwf     = scaler2.fit(Xwf_train)  # Standardize to fit train set WITH FEATURE LAGS
-    # Step3: Standardize train AND test sets WITHOUT FEATURES nor their lags
-    Xwof_train     = pd.DataFrame(scalefitwof.transform(Xwof_train), columns=Xwof_train.columns,index=Xwof_train.index)
-    Xwof_test      = pd.DataFrame(scalefitwof.transform(Xwof_test), columns=Xwof_test.columns,index=Xwof_test.index)
-    # Standardize train AND test sets WITHOUT FEATURES and their lags
-    Xwf_train     = pd.DataFrame(scalefitwf.transform(Xwf_train), columns=Xwf_train.columns,index=Xwf_train.index)
-    Xwf_test      = pd.DataFrame(scalefitwf.transform(Xwf_test), columns=Xwf_test.columns,index=Xwf_test.index)
-    # Scale and fit responses
-    scalefity   = scaler.fit(y_train2) 
-    y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
-    y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
+# =============================================================================
+#     # Step2: Fit standardizer to train sets
+#     scalefitwof    = scaler.fit(Xwof_train) # Standardize to fit train set WITHOUT FEATURE LAGS
+#     scalefitwf     = scaler2.fit(Xwf_train)  # Standardize to fit train set WITH FEATURE LAGS
+#     # Step3: Standardize train AND test sets WITHOUT FEATURES nor their lags
+#     Xwof_train     = pd.DataFrame(scalefitwof.transform(Xwof_train), columns=Xwof_train.columns,index=Xwof_train.index)
+#     Xwof_test      = pd.DataFrame(scalefitwof.transform(Xwof_test), columns=Xwof_test.columns,index=Xwof_test.index)
+#     # Standardize train AND test sets WITHOUT FEATURES and their lags
+#     Xwf_train     = pd.DataFrame(scalefitwf.transform(Xwf_train), columns=Xwf_train.columns,index=Xwf_train.index)
+#     Xwf_test      = pd.DataFrame(scalefitwf.transform(Xwf_test), columns=Xwf_test.columns,index=Xwf_test.index)
+#     # Scale and fit responses
+#     scalefity   = scaler.fit(y_train2) 
+#     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
+#     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)
+# =============================================================================
 ##############################################################################
     for resp in list_of_responses:
         ## Model Selection
@@ -197,18 +200,20 @@ for train_index,test_index in tsplit.split(regdata.index):
     Xwf_train, Xwf_test   = regdata.iloc[train_index], regdata.iloc[test_index]
     #
     y_train2, y_test2     = regdata[list_of_responses].iloc[train_index], regdata[list_of_responses].iloc[test_index]    # Step2: Fit standardizer to train set
-    scalefitwf     = scaler2.fit(Xwf_train)
-    # Step3: Standardize train AND test sets WITHOUT FEATURES and their lags
-    Xwf_train     = pd.DataFrame(scalefitwf.transform(Xwf_train), 
-                                 columns=Xwf_train.columns,index=Xwf_train.index)
-    Xwf_test      = pd.DataFrame(scalefitwf.transform(Xwf_test), 
-                                 columns=Xwf_test.columns,index=Xwf_test.index)
-    # Scale and fit responses
-    scalefity   = scaler.fit(y_train2) 
-    y_train2    = pd.DataFrame(scalefity.transform(y_train2), 
-                               columns=list_of_responses,index=y_train2.index)
-    y_test2     = pd.DataFrame(scalefity.transform(y_test2), 
-                               columns=list_of_responses,index=y_test2.index)
+# =============================================================================
+#     scalefitwf     = scaler2.fit(Xwf_train)
+#     # Step3: Standardize train AND test sets WITHOUT FEATURES and their lags
+#     Xwf_train     = pd.DataFrame(scalefitwf.transform(Xwf_train), 
+#                                  columns=Xwf_train.columns,index=Xwf_train.index)
+#     Xwf_test      = pd.DataFrame(scalefitwf.transform(Xwf_test), 
+#                                  columns=Xwf_test.columns,index=Xwf_test.index)
+#     # Scale and fit responses
+#     scalefity   = scaler.fit(y_train2) 
+#     y_train2    = pd.DataFrame(scalefity.transform(y_train2), 
+#                                columns=list_of_responses,index=y_train2.index)
+#     y_test2     = pd.DataFrame(scalefity.transform(y_test2), 
+#                                columns=list_of_responses,index=y_test2.index)
+# =============================================================================
 ######## Apply PCA transformation ############################################
     pca.fit(Xwf_train) # Fit 1
     Xwf_trainPCA    = pca.transform(Xwf_train) # Transformed train set
@@ -231,14 +236,14 @@ for train_index,test_index in tsplit.split(regdata.index):
         # Add number of lags corresponding to iteration number from OLS with features
         modelselectWRFR = [1]
         # Define lagged X w.r.t AIC
-        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]],\
+        Xwf_train_L     = sm.tsa.tsatools.lagmat2ds(Xwf_trainPCA[[resp] + ['ret'] + pclist],\
                                                     maxlag0=modelselectWRFR[-1],trim='forward', \
-                                                    dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWRFR[-1]],
-                                                                                    columns=Xwf_trainPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
-        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + pclist[-1]],\
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_trainPCA[[resp] + ['ret'] + pclist].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_trainPCA[[resp] + ['ret'] + pclist].columns[0])
+        Xwf_test_L     = sm.tsa.tsatools.lagmat2ds(Xwf_testPCA[[resp] + ['ret'] + pclist],\
                                                     maxlag0=modelselectWRFR[-1],trim='forward', \
-                                                    dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].index[:modelselectWRFR[-1]],
-                                                                                    columns=Xwf_testPCA[[resp] + ['ret'] + pclist[-1]].columns[0])
+                                                    dropex=1, use_pandas=True).drop(index=Xwf_testPCA[[resp] + ['ret'] + pclist].index[:modelselectWRFR[-1]],
+                                                                                    columns=Xwf_testPCA[[resp] + ['ret'] + pclist].columns[0])
         # Train models
         model   = { \
                    'RFRWPCA': GridSearchCV(RFR, param_grid=random_grid, \
