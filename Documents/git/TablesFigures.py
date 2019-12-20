@@ -228,14 +228,14 @@ for i in range(6):
     plt.xticks(ticks=np.arange(0,len(RFRresultsW)*2,step=2), labels=list_of_responses)
     plt.xlim(0,len(RFRresultsW)*2)
 plt.bar(range(0,12,2), range(0,1,1),align='edge', alpha=0.6, 
-        color=['C0'], label='$\Delta MSE_{Features}$')
+        color=['C0'], label='$ \Delta MSE_{Feat}$')
 plt.bar(range(1,13,2), range(0,1,1),align='edge', alpha=0.6, 
-        color=['C1'], label='$\Delta MSE_{PC}}$')
+        color=['C1'], label='$ \Delta MSE_{PC}$')
 plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
            fontsize='small', fancybox=True, shadow=True)
 plt.grid(axis='x')
-plt.ylabel('$\Delta$ Mean Squared Error')
-fig9.savefig('C:/Users/iles_/Figures/RFRresults.pdf', bbox_inches = 'tight', pad_inches = 0)
+plt.ylabel('$ \Delta$ Mean Squared Error')
+fig9.savefig('C:/Users/iles_/Figures/RFRresults2.pdf', bbox_inches = 'tight', pad_inches = 0)
 
 # Feature importance plot Forest
 plt.rc('text', usetex=True)
@@ -248,11 +248,11 @@ for i in range(0,6,1):
             color= 'mediumaquamarine', edgecolor = 'black')
     FIWsplit5.mean(axis=1)[rankedW].plot(ax=axs10[1], kind='barh',  alpha=0.5, 
            color= 'blue', edgecolor = 'black')
-    FIWPCAsplit5[ranked3].plot(ax=axs10[2], kind='barh', alpha=0.5, 
+    FIWPCAsplit5.mean(axis=1)[ranked3].plot(ax=axs10[2], kind='barh', alpha=0.5, 
            color= 'seagreen', edgecolor = 'black')
 fig10.legend('')
 plt.xlabel('Mean Relative Importance')
-fig10.savefig('C:/Users/iles_/Figures/RFRFI.pdf', bbox_inches = 'tight', pad_inches = 0)
+fig10.savefig('C:/Users/iles_/Figures/RFRFI2.pdf', bbox_inches = 'tight', pad_inches = 0)
 
 # Visualization, 100 trees:
 i_tree = 0
@@ -268,13 +268,11 @@ regdataa = pd.DataFrame()
 for i in range(15):
     regdataa[i] = yeojohnson(regdata.iloc[:,i])[0]
 
-
-x = np.array([regdata.iloc[:,i] for i in range(14)])
-
-for i in range(14):
-    yeojohnson_normplot(x[i], -2, 2, plot=True, N = 299)
-    _, maxlog = yeojohnson(x)
-    ax.axvline(maxlog, color='r')
+fig = plt.figure()
+ax  = fig.add_subplot(111)
+for i in range(15):
+    yeojohnson_normplot(regdata.iloc[:,i], -5, 5, plot=ax, N = 299)
+    ax.axvline(yeojohnson(regdata.iloc[:,i])[1], color='black', ls='--', lw=0.8)
 plt.show()
 # %%   TABLES 
 """

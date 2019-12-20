@@ -1,7 +1,7 @@
 #%% RANDOM FOREST FEATURE SELECTION ###########################################
 
 ## Defining grid for Gridsearch cross validation ##
-n_estimators      = [100]
+n_estimators      = [500]
 # Server execution uses:
 #[int(x) for x in np.linspace(start = 50, stop = 500, num = 3)]
 

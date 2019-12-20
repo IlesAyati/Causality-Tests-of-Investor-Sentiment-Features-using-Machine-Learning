@@ -127,12 +127,12 @@ linresultsWO = []
 linresultsW  = []
 linresidWO   = []
 linresidW    = []
-Ftest        = []
+Ftest1       = []
 # Get the results
 for i in range(0,len(axLinWO)):
     linresultsWO.append(aic(axLinWO[i][:,0],axLinWO[i][:,1],lin_regcoefWO[i].shape[0]))
     linresultsW.append(aic(axLinW[i][:,0],axLinW[i][:,1],lin_regcoefW[i].shape[0]))
-    Ftest.append(F(axLinWO[i][:,0],
+    Ftest1.append(F(axLinWO[i][:,0],
                    axLinWO[i][:,1],
                    axLinW[i][:,0],
                    axLinW[i][:,1],
@@ -269,8 +269,15 @@ print(t1-t0)
 # Each columns alternates between true y_test and predicted y_test
 linresultsWPCA  = []
 linresidWPCA    = []
+Ftest2          = []
 # Get the results
 for i in range(0,len(axLinWPCA)):
+    Ftest2.append(F(axLinWO[i][:,0],
+                   axLinWO[i][:,1],
+                   axLinWPCA[i][:,0],
+                   axLinWPCA[i][:,1],
+                   lin_regcoefWO[i].shape[0], 
+                   lin_regcoefWPCA[i].shape[0]))
     linresultsWPCA.append(aic(axLinWPCA[i][:,0],axLinWPCA[i][:,1],lin_regcoefWPCA[i].shape[0]))
     linresidWPCA.append(axLinWPCA[i][:,0] - axLinWPCA[i][:,1])
 # =============================================================================

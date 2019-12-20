@@ -15,7 +15,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.feature_selection import f_regression
-from scipy.stats import normaltest
+from scipy.stats import normaltest, yeojohnson
 from timeit import default_timer as timer
 #from sklearn.tree.tree import DecisionTreeClassifier
 #from sklearn.tree.export import export_graphviz
