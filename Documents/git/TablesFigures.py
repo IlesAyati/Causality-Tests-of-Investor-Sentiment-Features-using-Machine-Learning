@@ -32,8 +32,23 @@ plt.show()
 DStats       = regdata.describe().append([regdata.skew(), regdata.kurt()],ignore_index=True)
 DStats.index = ['obs', 'mean', 'std', 'min', '25%', '50%', '75%', 'max','skew','kurt']
 
-
-##############################################################################
+# Plot example of region splits for a decion tree
+fig3d = plt.figure()
+ax3d  = fig3d.add_subplot(111)
+r1    = 0.084
+ax3d.scatter(regdata.cefd, regdata.SMALLHiBM)
+ax3d.axvline(x=r1)
+ax3d.axhline(y=0.028, ls='--', xmax=0.585, c = 'k')
+ax3d.axhline(y=0.0, ls='--', xmin=0.585, c = 'k')
+plt.xlim(-0.025,0.16)
+plt.ylim(-0.22,0.2)
+ax3d.axvspan(-0.025,r1, alpha = 0.3, color='C0')
+ax3d.axvspan(r1,0.16, alpha = 0.3, color='C1')
+ax3d.set_xlabel('cefd')
+ax3d.set_ylabel('SMALLHiBM')
+fig3d.savefig('C:/Users/iles_/Figures/fig3d.pdf', bbox_inches = 'tight', pad_inches = 0)
+plt.show()
+###############################################################################
 # %% GLS results ##############################################################
 ### Univariate - T stats
 plt.rc('text', usetex=True)
