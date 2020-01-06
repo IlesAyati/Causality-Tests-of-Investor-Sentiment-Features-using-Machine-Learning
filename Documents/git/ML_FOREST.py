@@ -28,7 +28,7 @@ random_grid       = {'n_estimators': n_estimators,
                      'bootstrap': bootstrap}
 # Define Random Forest Regressor as estimator for regression
 RFR              = RandomForestRegressor(oob_score=True, warm_start= True, 
-                                         criterion='mse') 
+                                         criterion='mse', random_state=42) 
 
 ## RANDOM FOREST ####
 #

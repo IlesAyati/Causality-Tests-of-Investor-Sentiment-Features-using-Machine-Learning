@@ -51,7 +51,7 @@ testscoreLW       = []
 #
 lasso_params      = {'alpha':[0.005, 0.01, 0.03, 0.05]}
 ridge_params      = {'alpha':[0.005, 0.01, 0.03, 0.05],
-                     'solver': ['sag','saga']}
+                     'solver': ['auto']}
 #
 countiter         = []
 modelselect2WO    = []
@@ -73,10 +73,10 @@ for train_index,test_index in tsplit.split(regdata.index):
     # Step3: Standardize train AND test sets WITHOUT FEATURES nor their lags
     Xwof_train     = pd.DataFrame(scalefitwof.transform(Xwof_train), columns=Xwof_train.columns,index=Xwof_train.index)
     Xwof_test      = pd.DataFrame(scalefitwof.transform(Xwof_test), columns=Xwof_test.columns,index=Xwof_test.index)
-    # Standardize train AND test sets WITHOUT FEATURES and their lags
+    # Standardize train AND test sets WITH FEATURES and their lags
     Xwf_train     = pd.DataFrame(scalefitwf.transform(Xwf_train), columns=Xwf_train.columns,index=Xwf_train.index)
     Xwf_test      = pd.DataFrame(scalefitwf.transform(Xwf_test), columns=Xwf_test.columns,index=Xwf_test.index)
-    # Scale and fit responses
+    # Scale and fit responses 
     scalefity   = scaler.fit(y_train2) 
     y_train2    = pd.DataFrame(scalefity.transform(y_train2), columns=list_of_responses,index=y_train2.index)
     y_test2     = pd.DataFrame(scalefity.transform(y_test2), columns=list_of_responses,index=y_test2.index)

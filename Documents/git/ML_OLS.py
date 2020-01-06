@@ -64,9 +64,9 @@ for train_index,test_index in tsplit.split(regdata.index):
         for exog in notff3:
             ## Model Selection
             modelselectWO.append(np.max([1,VAR(Xwof_train[[resp] + ['ret']],
-                                   dates=y_train2.index).select_order(maxlags=12).aic]))
+                                   dates=y_train2.index).select_order(maxlags=2).aic]))
             modelselectW.append(np.max([1,VAR(Xwf_train[[resp] + ['ret'] + [exog]],
-                                   dates=y_train2.index).select_order(maxlags=12).aic]))
+                                   dates=y_train2.index).select_order(maxlags=2).aic]))
             # Define lagged X w.r.t AIC
             Xwof_train_L   = sm.tsa.tsatools.lagmat2ds(Xwof_train[[resp] + ['ret']],
                                                         maxlag0=modelselectWO[-1],trim='forward', 

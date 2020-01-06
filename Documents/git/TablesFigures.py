@@ -133,25 +133,91 @@ plt.grid(axis='x')
 plt.ylabel('$\Delta$ AIC')
 fig4.savefig('C:/Users/iles_/Figures/LinRegAIC.pdf', bbox_inches = 'tight', pad_inches = 0)
 
-Linprog = []
+Linprog     = []
+LinPCprog   = []
+Ridprog     = []
+RidPCprog   = []
+Lassprog    = []
+LasPCprog   = []
+RFprog      = []
+RFPCprog    = []
 for i in range(6): 
     Linprog.append(np.array(np.mean(linresultsW[i::6])-np.mean(linresultsWO[i::6])))
-Linprog = pd.DataFrame(Linprog, columns = linresultsW.columns, index=notff3)
+    LinPCprog.append(np.array(np.mean(linresultsWPCA[i::6])-np.mean(linresultsWO[i::6])))
+    Ridprog.append(np.array(np.mean(ridgeresultsW[i::6])-np.mean(ridgeresultsWO[i::6])))
+    RidPCprog.append(np.array(np.mean(ridgeresultsWPCA[i::6])-np.mean(ridgeresultsWO[i::6])))
+    Lassprog.append(np.array(np.mean(lassoresultsW[i::6])-np.mean(lassoresultsWO[i::6])))
+    LasPCprog.append(np.array(np.mean(lassoresultsWPCA[i::6])-np.mean(lassoresultsWO[i::6])))
+    RFprog.append(np.array(np.mean(RFRresultsW[i::6])-np.mean(RFRresultsWO[i::6])))
+    RFPCprog.append(np.array(np.mean(RFRresultsWPCA[i::6]).values-np.mean(RFRresultsWO[i::6]).values))
+#
+Linprog     = pd.DataFrame(Linprog, columns = linresultsW.columns, index=notff3)
+LinPCprog   = pd.DataFrame(LinPCprog, columns = linresultsW.columns, index=RFRresultsWPCA.index)
+Ridprog     = pd.DataFrame(Ridprog, columns = linresultsW.columns, index=notff3)
+RidPCprog   = pd.DataFrame(RidPCprog, columns = linresultsW.columns, index=RFRresultsWPCA.index)
+Lassprog    = pd.DataFrame(Lassprog, columns = linresultsW.columns, index=notff3)
+LasPCprog   = pd.DataFrame(LasPCprog, columns = linresultsW.columns, index=RFRresultsWPCA.index)
+RFprog      = pd.DataFrame(RFprog, columns = linresultsW.columns, index=notff3)
+RFPCprog    = pd.DataFrame(RFPCprog, columns = linresultsW.columns, index=RFRresultsWPCA.index)
+pclabels    = ['SMALLLoBM + PCs', 'ME1BM2 + PCs', 'SMALLHiBM + PCs', 
+               'BIGLoBM + PCs','ME2BM2 + PCs', 'BIGHiBM + PCs']
+##############################################################################
+# ML Progression 
+Progfig, axes = plt.subplots(4,2,figsize=(10, 13))
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+for i in range(6):
+    axes[0,0].plot(Linprog.iloc[i,:], alpha=0.8, label=notff3[i])
+    axes[0,1].plot(LinPCprog.iloc[i,:], alpha=0.8, label=pclabels[i])
+    axes[1,0].plot(Ridprog.iloc[i,:], alpha=0.8)
+    axes[1,1].plot(RidPCprog.iloc[i,:], alpha=0.8)
+    axes[2,0].plot(Lassprog.iloc[i,:], alpha=0.8)
+    axes[2,1].plot(LasPCprog.iloc[i,:], alpha=0.8)
+    axes[3,0].plot(RFprog.iloc[i,:], alpha=0.8, )
+    axes[3,1].plot(RFPCprog.iloc[i,:], alpha=0.8)
+    #plt.bar(range(0,6,1), range(0,1,1), label=notff3[i])
+leg1    = plt.legend(ncol=2, handles=axes[0,0].lines, 
+                     bbox_to_anchor=[-0.5, -0.15],
+                     fontsize='small', fancybox=True, shadow=True)
+plt.gca().add_artist(leg1)
+leg2    = plt.legend(ncol=2, handles=axes[0,1].lines, 
+                     bbox_to_anchor=[0.9, -0.15],
+                     fontsize='small', fancybox=True, shadow=True)
+plt.gca().add_artist(leg2)
+titlelist = ['OLS','PC: OLS','Ridge','PC: Ridge',
+             'Lasso','PC: Lasso','Random Forest',
+             'PC: Random Forest']
+for c in axes:
+    for ax in c:
+        ax.axhline(y=0, alpha=1, color='k', ls='--', lw=0.5)
+        ax.set_xlim(0,4)
+        ax.grid(axis='x', ls='--')
+axes[0,0].title.set_text(titlelist[0])
+axes[0,1].title.set_text(titlelist[1])
+axes[1,0].title.set_text(titlelist[2])
+axes[1,1].title.set_text(titlelist[3])
+axes[2,0].title.set_text(titlelist[4])
+axes[2,1].title.set_text(titlelist[5])
+axes[3,0].title.set_text(titlelist[6])
+axes[3,1].title.set_text(titlelist[7])
+axes[0,0].set_ylabel('Mean $\Delta$ AIC')
+axes[3,0].set_ylabel('Mean $\Delta$ MSE')
+Progfig.savefig('C:/Users/iles_/Figures/Progfig2.pdf', bbox_inches = 'tight', pad_inches = 0)
 
-# Mean AIC Progression LinReg
-Progfig = plt.figure()
+# Mean AIC Progression Linreg
+ProgfigLin = plt.figure()
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 for i in range(6): 
     plt.plot(Linprog.iloc[i,:], alpha=0.8)
-    plt.axhline(y=0, alpha=0.3, color='black', ls='--')
+    plt.axhline(y=0, alpha=0.3, color='black', ls='--', lw=0.5)
     plt.bar(range(0,6,1), range(0,1,1), label=notff3[i])
     plt.xlim(0,4)
+plt.grid(axis='x')
 plt.legend(ncol=1, bbox_to_anchor=[1, 0], loc='lower left', 
            fontsize='small', fancybox=True, shadow=True)
-plt.grid(axis='x')
 plt.ylabel('Mean $\Delta$ AIC')
-Progfig.savefig('C:/Users/iles_/Figures/Progfig.pdf', bbox_inches = 'tight', pad_inches = 0)
+ProgfigLin.savefig('C:/Users/iles_/Figures/Progfig.pdf', bbox_inches = 'tight', pad_inches = 0)
 ##############################################################################
 # LASSORIDGE
 ## Plot some random draws of Random Forest predictions (orange) vs reality (blue)
